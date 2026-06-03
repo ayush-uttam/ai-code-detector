@@ -1,0 +1,94 @@
+{
+  "entities": {
+    "Mentor": {
+      "title": "Mentor Profile",
+      "description": "Details of the instructor/mentor logged in with Google Auth.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "Email address of the mentor."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the mentor."
+        },
+        "geminiApiKey": {
+          "type": "string",
+          "description": "Optional custom Gemini API key provided by this mentor."
+        },
+        "openaiApiKey": {
+          "type": "string",
+          "description": "Optional custom OpenAI API key provided by this mentor."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of profile update."
+        }
+      },
+      "required": ["email", "name", "createdAt"]
+    },
+    "Student": {
+      "title": "Student Repository Record",
+      "description": "A student added by a particular mentor for repository analysis.",
+      "type": "object",
+      "properties": {
+        "mentorId": {
+          "type": "string",
+          "description": "UID of the mentor who added this student."
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the student."
+        },
+        "rollNo": {
+          "type": "string",
+          "description": "Student roll or registration number."
+        },
+        "githubUrl": {
+          "type": "string",
+          "description": "GitHub repository URL to inspect."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "fetching", "fetched", "analyzing", "analyzed", "error"],
+          "description": "Current scanning and analysis status."
+        },
+        "errorMsg": {
+          "type": "string",
+          "description": "Optional analysis error feedback."
+        },
+        "analyzedFilename": {
+          "type": "string",
+          "description": "Primary scanned source file path."
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "Label of Gemini model used."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when student was registered."
+        }
+      },
+      "required": ["mentorId", "name", "rollNo", "githubUrl", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/mentors/{mentorId}": {
+      "schema": "Mentor",
+      "description": "Private profile information for a signed-in mentor."
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Students added for analysis, filtered by mentorId."
+    }
+  }
+}

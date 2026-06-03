@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny Catch-all)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- REUSABLE SECURITY PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION BLUEPRINTS ---
+    function isValidMentor(data) {
+      return data.email is string && data.email.size() <= 256 &&
+             data.name is string && data.name.size() <= 256 &&
+             (!('geminiApiKey' in data) || (data.geminiApiKey is string && data.geminiApiKey.size() <= 512)) &&
+             (!('openaiApiKey' in data) || (data.openaiApiKey is string && data.openaiApiKey.size() <= 512));
+    }
+
+    function isValidStudent(data) {
+      return data.mentorId is string && data.mentorId.size() <= 128 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.rollNo is string && data.rollNo.size() <= 128 &&
+             data.githubUrl is string && data.githubUrl.size() <= 512 &&
+             data.status is string && data.status.size() <= 64 &&
+             (!('errorMsg' in data) || data.errorMsg is string && data.errorMsg.size() <= 4096) &&
+             (!('analyzedFilename' in data) || data.analyzedFilename is string && data.analyzedFilename.size() <= 512) &&
+             (!('modelUsed' in data) || data.modelUsed is string && data.modelUsed.size() <= 128) &&
+             (!('activeReport' in data) || data.activeReport is map);
+    }
+
+    // --- COLLECTION RULES ---
+
+    // Mentors Collection
+    match /mentors/{mentorId} {
+      allow get: if isVerified() && isOwner(mentorId);
+      
+      allow create: if isVerified() && 
+                       isOwner(mentorId) && 
+                       isValidMentor(incoming()) && 
+                       incoming().createdAt == request.time;
+                       
+      allow update: if isVerified() && 
+                       isOwner(mentorId) && 
+                       isValidMentor(incoming()) && 
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt == request.time;
+                       
+      allow delete: if false; // Mentor deletion not exposed client-side
+    }
+
+    // Students Collection
+    match /students/{studentId} {
+      // Secure list queries (enforce owner filtering on resource list requests)
+      allow list: if isVerified() && resource.data.mentorId == request.auth.uid;
+      allow get: if isVerified() && resource.data.mentorId == request.auth.uid;
+
+      allow create: if isVerified() && 
+                       isValidId(studentId) &&
+                       isOwner(incoming().mentorId) && 
+                       isValidStudent(incoming()) && 
+                       incoming().createdAt == request.time &&
+                       // Relational check: Verify the creator exists in mentors collection
+                       exists(/databases/$(database)/documents/mentors/$(incoming().mentorId));
+
+      allow update: if isVerified() && 
+                       isOwner(existing().mentorId) && 
+                       isOwner(incoming().mentorId) && 
+                       isValidStudent(incoming()) && 
+                       incoming().createdAt == existing().createdAt &&
+                       // Prevent modifying owner
+                       incoming().mentorId == existing().mentorId;
+
+      allow delete: if isVerified() && 
+                       isOwner(existing().mentorId);
+    }
+  }
+}
