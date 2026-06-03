@@ -13,15 +13,19 @@ import {
   FileCheck,
   GitCommit,
   History,
-  ExternalLink
+  ExternalLink,
+  FileSpreadsheet,
+  Printer
 } from "lucide-react";
+import { exportStudentToXLSX } from "../utils/exportUtils";
 
 interface ReportViewerProps {
   student: Student;
   report: Report;
+  onPrint?: () => void;
 }
 
-export default function ReportViewer({ student, report }: ReportViewerProps) {
+export default function ReportViewer({ student, report, onPrint }: ReportViewerProps) {
   const getScoreColor = (score: number) => {
     if (score >= 70) return "text-rose-600 bg-rose-50 border-rose-200 fill-rose-600";
     if (score >= 30) return "text-amber-600 bg-amber-50 border-amber-200 fill-amber-600";
@@ -54,16 +58,36 @@ export default function ReportViewer({ student, report }: ReportViewerProps) {
       
       {/* 1. Header with Stats & Verdict Banner */}
       <div className="bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-lg">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-950/40">
+        <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/40">
           <div>
             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Analysis Result</span>
             <h1 className="font-display font-bold text-white text-lg leading-tight flex items-center gap-1.5">
               <span>Code Audit for {student.name}</span>
             </h1>
           </div>
-          <div className="text-[10px] font-mono text-zinc-400 bg-zinc-950 border border-white/10 py-1 px-2.5 rounded-lg flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-zinc-500" />
-            <span>{report.analyzedAt ? new Date(report.analyzedAt).toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => exportStudentToXLSX(student)}
+              className="py-1 px-2.5 text-[10px] font-semibold border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+              title="Export Detailed Report to Excel (.xlsx)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-450" />
+              <span>Export Excel</span>
+            </button>
+
+            <button
+              onClick={onPrint}
+              className="py-1 px-2.5 text-[10px] font-semibold border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+              title="Print or Save Report to PDF"
+            >
+              <Printer className="w-3.5 h-3.5 text-sky-400" />
+              <span>Print/PDF</span>
+            </button>
+
+            <div className="text-[10px] font-mono text-zinc-400 bg-zinc-950 border border-white/10 py-1 px-2.5 rounded-lg flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-zinc-500" />
+              <span>{report.analyzedAt ? new Date(report.analyzedAt).toLocaleTimeString() : new Date().toLocaleTimeString()}</span>
+            </div>
           </div>
         </div>
 

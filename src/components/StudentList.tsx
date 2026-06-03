@@ -15,8 +15,11 @@ import {
   UserCheck,
   Search,
   Filter,
-  BarChart2
+  BarChart2,
+  Printer,
+  Download
 } from "lucide-react";
+import { exportAllStudentsToXLSX } from "../utils/exportUtils";
 
 interface StudentListProps {
   students: Student[];
@@ -24,6 +27,7 @@ interface StudentListProps {
   setSelectedStudentId: (id: string | null) => void;
   onAnalyzeStudent: (student: Student, forceRefetch?: boolean) => void;
   onAnalyzeAll: () => void;
+  onPrintAll?: () => void;
 }
 
 export default function StudentList({
@@ -32,6 +36,7 @@ export default function StudentList({
   setSelectedStudentId,
   onAnalyzeStudent,
   onAnalyzeAll,
+  onPrintAll,
 }: StudentListProps) {
   const { 
     addStudent, 
@@ -48,6 +53,7 @@ export default function StudentList({
   // Manual adding state
   const [showManualForm, setShowManualForm] = useState(false);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualRoll, setManualRoll] = useState("");
   const [manualRepo, setManualRepo] = useState("");
@@ -640,19 +646,65 @@ export default function StudentList({
 
       {/* 5. Footer Run All Actions */}
       {students.length > 0 && (
-        <div className="p-3 bg-zinc-950 border-t border-white/10 flex items-center justify-between">
+        <div className="p-3 bg-zinc-950 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap animate-fadeIn relative z-20">
           <span className="text-[10px] font-semibold text-zinc-500">
             Total of {totalStudents} Student{totalStudents !== 1 ? "s" : ""}
           </span>
-          <button
-            id="analyze-all-btn"
-            onClick={onAnalyzeAll}
-            disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
-            className="py-1.5 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow-md shadow-sky-950/40 flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
-          >
-            <BarChart2 className="w-3.5 h-3.5" />
-            <span>Analyze Grid Repos</span>
-          </button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {students.some(s => s.status === "analyzed") && (
+              <div className="relative">
+                <button
+                  id="bulk-export-btn"
+                  type="button"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="py-1.5 px-2.5 bg-zinc-900 border border-white/10 hover:bg-zinc-850 text-zinc-350 font-semibold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Export Grid</span>
+                </button>
+                {/* Dropdown Menu */}
+                {showExportMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowExportMenu(false)} />
+                    <div className="absolute bottom-full left-0 mb-1.5 bg-zinc-950 border border-white/10 rounded-lg shadow-xl py-1 w-44 z-50 text-xs animate-fadeIn">
+                      <button
+                        onClick={() => {
+                          exportAllStudentsToXLSX(students);
+                          setShowExportMenu(false);
+                        }}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-450" />
+                        <span>Export Excel (.xlsx)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onPrintAll) onPrintAll();
+                          setShowExportMenu(false);
+                        }}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Print Master PDF</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            <button
+              id="analyze-all-btn"
+              onClick={onAnalyzeAll}
+              disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
+              className="py-1.5 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow-md shadow-sky-950/40 flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Analyze Grid Repos</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
