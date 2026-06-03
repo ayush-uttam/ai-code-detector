@@ -32,7 +32,7 @@ export default function App() {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [githubToken, setGithubToken] = useState<string>("");
   const [aiProvider, setAiProvider] = useState<"gemini" | "openai">("gemini");
-  const [geminiModel, setGeminiModel] = useState<string>("gemini-3.5-flash");
+  const [geminiModel, setGeminiModel] = useState<string>("gemini-3.1-flash-lite");
   const [activeTab, setActiveTab] = useState<"report" | "code">("report");
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
 
@@ -87,9 +87,9 @@ export default function App() {
       if (filesToUse.length === 0 || forceRefetch) {
         await updateStudent(student.id, { 
           status: "fetching", 
-          errorMsg: undefined, 
-          files: undefined, 
-          activeReport: undefined 
+          errorMsg: null, 
+          files: null, 
+          activeReport: null 
         });
 
         const res = await fetch("/api/github/fetch-files", {
@@ -126,7 +126,10 @@ export default function App() {
       }
 
       // Step C: Trigger Analysis
-      await updateStudent(student.id, { status: "analyzing" });
+      await updateStudent(student.id, { 
+        status: "analyzing",
+        errorMsg: null
+      });
 
       const geminiKey = mentor?.geminiApiKey || "";
       const openaiKey = mentor?.openaiApiKey || "";
@@ -170,6 +173,7 @@ export default function App() {
         status: "analyzed",
         analyzedFilename: primeFile.path,
         modelUsed: modelUsedLabel,
+        errorMsg: null,
         activeReport: {
           ...reportData,
           analyzedAt: new Date().toISOString()
@@ -200,7 +204,7 @@ export default function App() {
     setIsAnalyzingSandbox(true);
     await updateStudent(selectedStudent.id, { 
       status: "analyzing", 
-      errorMsg: undefined 
+      errorMsg: null 
     });
 
     try {
@@ -253,6 +257,7 @@ export default function App() {
         files: [sandboxMockFile],
         analyzedFilename: filename,
         modelUsed: modelUsedLabel,
+        errorMsg: null,
         activeReport: {
           ...reportData,
           analyzedAt: new Date().toISOString()
