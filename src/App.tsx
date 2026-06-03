@@ -295,11 +295,9 @@ export default function App() {
       <header className="bg-zinc-950 border-b border-white/10 sticky top-0 z-10 shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="p-2 bg-sky-500 text-white rounded-lg inline-flex items-center justify-center shadow-lg shadow-sky-950/50">
-              <ShieldCheck className="w-6 h-6" />
-            </span>
             <div>
               <h1 className="font-display font-bold text-white text-lg leading-tight tracking-tight flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-sky-400" />
                 <span>SENTINEL AI</span>
                 <span className="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Academic Suite</span>
               </h1>
