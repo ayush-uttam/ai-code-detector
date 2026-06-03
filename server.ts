@@ -271,6 +271,9 @@ app.post("/api/analyze/code", async (req: express.Request, res: express.Response
   const customApiKey = req.headers["x-gemini-api-key"] as string | undefined;
   const customOpenaiApiKey = req.headers["x-openai-api-key"] as string | undefined;
 
+  console.log("[DIAGNOSTIC] customApiKey received:", customApiKey ? `${customApiKey.substring(0, 6)}... (len: ${customApiKey.length})` : "undefined/empty");
+  console.log("[DIAGNOSTIC] customOpenaiApiKey received:", customOpenaiApiKey ? `${customOpenaiApiKey.substring(0, 6)}... (len: ${customOpenaiApiKey.length})` : "undefined/empty");
+
   if (!code) {
     res.status(400).json({ error: "Missing code block for analysis" });
     return;

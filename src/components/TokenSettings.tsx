@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Settings, HelpCircle, ShieldAlert, KeyRound, Cpu, Check, Eye, EyeOff } from "lucide-react";
+import { useFirebase } from "./FirebaseProvider";
+import { secureKey } from "../utils/crypto";
 
 interface TokenSettingsProps {
   githubToken: string;
@@ -26,10 +28,19 @@ export default function TokenSettings({
   customOpenaiKey,
   onSaveCustomOpenaiKey,
 }: TokenSettingsProps) {
+  const { user } = useFirebase();
   const [isOpen, setIsOpen] = useState(false);
-  const [tokenInput, setTokenInput] = useState(githubToken);
-  const [geminiInput, setGeminiInput] = useState(customGeminiKey);
-  const [openaiInput, setOpenaiInput] = useState(customOpenaiKey);
+  
+  // Masking and modification states
+  const [isGithubModified, setIsGithubModified] = useState(false);
+  const [githubInput, setGithubInput] = useState("");
+  const [showGithubToken, setShowGithubToken] = useState(false);
+  
+  const [isGeminiModified, setIsGeminiModified] = useState(false);
+  const [geminiInput, setGeminiInput] = useState("");
+  const [isOpenaiModified, setIsOpenaiModified] = useState(false);
+  const [openaiInput, setOpenaiInput] = useState("");
+
   const [saved, setSaved] = useState(false);
   const [geminiSaved, setGeminiSaved] = useState(false);
   const [openaiSaved, setOpenaiSaved] = useState(false);
@@ -37,29 +48,76 @@ export default function TokenSettings({
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
 
   useEffect(() => {
-    setTokenInput(githubToken);
-  }, [githubToken]);
-
-  useEffect(() => {
-    setGeminiInput(customGeminiKey);
+    if (customGeminiKey) {
+      setGeminiInput("••••••••••••••••••••••••••••••••");
+      setIsGeminiModified(false);
+    } else {
+      setGeminiInput("");
+      setIsGeminiModified(true);
+    }
   }, [customGeminiKey]);
 
   useEffect(() => {
-    setOpenaiInput(customOpenaiKey);
+    if (customOpenaiKey) {
+      setOpenaiInput("••••••••••••••••••••••••••••••••");
+      setIsOpenaiModified(false);
+    } else {
+      setOpenaiInput("");
+      setIsOpenaiModified(true);
+    }
   }, [customOpenaiKey]);
 
+  const handleGithubChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!isGithubModified) {
+      setIsGithubModified(true);
+      setGithubInput(val.replace(/•/g, ""));
+    } else {
+      setGithubInput(val);
+    }
+  };
+
+  const handleGeminiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!isGeminiModified) {
+      setIsGeminiModified(true);
+      setGeminiInput(val.replace(/•/g, ""));
+    } else {
+      setGeminiInput(val);
+    }
+  };
+
+  const handleOpenaiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!isOpenaiModified) {
+      setIsOpenaiModified(true);
+      setOpenaiInput(val.replace(/•/g, ""));
+    } else {
+      setOpenaiInput(val);
+    }
+  };
+
   const handleSaveToken = () => {
-    setGithubToken(tokenInput);
-    localStorage.setItem("github_pat_token", tokenInput);
+    if (!isGithubModified) return;
+    setGithubToken(githubInput);
+    if (user?.uid) {
+      const encrypted = secureKey(githubInput, user.uid);
+      localStorage.setItem("github_pat_token", encrypted);
+    } else {
+      localStorage.setItem("github_pat_token", githubInput);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    setIsGithubModified(false);
   };
 
   const handleSaveGeminiKey = async () => {
+    if (!isGeminiModified) return;
     try {
       await onSaveCustomGeminiKey(geminiInput);
       setGeminiSaved(true);
       setTimeout(() => setGeminiSaved(false), 2000);
+      setIsGeminiModified(false);
     } catch (err) {
       console.error(err);
       alert("Failed to save Gemini API key.");
@@ -67,10 +125,12 @@ export default function TokenSettings({
   };
 
   const handleSaveOpenaiKey = async () => {
+    if (!isOpenaiModified) return;
     try {
       await onSaveCustomOpenaiKey(openaiInput);
       setOpenaiSaved(true);
       setTimeout(() => setOpenaiSaved(false), 2000);
+      setIsOpenaiModified(false);
     } catch (err) {
       console.error(err);
       alert("Failed to save OpenAI API key.");
@@ -136,7 +196,7 @@ export default function TokenSettings({
                 type="button"
                 onClick={() => {
                   setAiProvider("gemini");
-                  setGeminiModel("gemini-3.5-flash");
+                  setGeminiModel("gemini-3.1-flash-lite");
                 }}
                 className={`py-2 px-3 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
                   aiProvider === "gemini"
@@ -287,14 +347,14 @@ export default function TokenSettings({
                   id="gemini-key-input"
                   type={showGeminiKey ? "text" : "password"}
                   placeholder="AIzaSy..."
-                  value={geminiInput}
-                  onChange={(e) => setGeminiInput(e.target.value)}
+                  value={showGeminiKey ? (isGeminiModified ? geminiInput : customGeminiKey) : geminiInput}
+                  onChange={handleGeminiChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
                 <button
                   type="button"
                   onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300"
+                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
                 >
                   {showGeminiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -302,7 +362,8 @@ export default function TokenSettings({
               <button
                 id="save-gemini-key-btn"
                 onClick={handleSaveGeminiKey}
-                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                disabled={!isGeminiModified}
+                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
               >
                 {geminiSaved ? "Saved!" : "Save Key"}
               </button>
@@ -312,6 +373,7 @@ export default function TokenSettings({
                 id="clear-gemini-key-btn"
                 onClick={async () => {
                   setGeminiInput("");
+                  setIsGeminiModified(true);
                   await onSaveCustomGeminiKey("");
                 }}
                 className="text-[10px] text-rose-400 hover:underline mt-1.5 font-medium cursor-pointer"
@@ -335,14 +397,14 @@ export default function TokenSettings({
                   id="openai-key-input"
                   type={showOpenaiKey ? "text" : "password"}
                   placeholder="sk-proj-..."
-                  value={openaiInput}
-                  onChange={(e) => setOpenaiInput(e.target.value)}
+                  value={showOpenaiKey ? (isOpenaiModified ? openaiInput : customOpenaiKey) : openaiInput}
+                  onChange={handleOpenaiChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
                 <button
                   type="button"
                   onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300"
+                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
                 >
                   {showOpenaiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
@@ -350,7 +412,8 @@ export default function TokenSettings({
               <button
                 id="save-openai-key-btn"
                 onClick={handleSaveOpenaiKey}
-                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                disabled={!isOpenaiModified}
+                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
               >
                 {openaiSaved ? "Saved!" : "Save Key"}
               </button>
@@ -360,6 +423,7 @@ export default function TokenSettings({
                 id="clear-openai-key-btn"
                 onClick={async () => {
                   setOpenaiInput("");
+                  setIsOpenaiModified(true);
                   await onSaveCustomOpenaiKey("");
                 }}
                 className="text-[10px] text-rose-400 hover:underline mt-1.5 font-medium cursor-pointer"
@@ -378,18 +442,28 @@ export default function TokenSettings({
               GitHub restricts anonymous API parsing to 60 requests/hr. Add a token (no scopes needed for public repos) to bypass limits.
             </p>
             <div className="flex gap-2">
-              <input
-                id="github-token-input"
-                type="password"
-                placeholder="ghp_xxxxxxxxxxxx"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                className="flex-1 px-3 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
-              />
+              <div className="relative flex-1">
+                <input
+                  id="github-token-input"
+                  type={showGithubToken ? "text" : "password"}
+                  placeholder="ghp_xxxxxxxxxxxx"
+                  value={showGithubToken ? (isGithubModified ? githubInput : githubToken) : githubInput}
+                  onChange={handleGithubChange}
+                  className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGithubToken(!showGithubToken)}
+                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                >
+                  {showGithubToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
               <button
                 id="save-token-btn"
                 onClick={handleSaveToken}
-                className="px-3 py-1.5 bg-white text-zinc-950 rounded-lg hover:bg-zinc-200 font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+                disabled={!isGithubModified}
+                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
               >
                 {saved ? "Saved!" : "Save Token"}
               </button>
@@ -398,7 +472,8 @@ export default function TokenSettings({
               <button
                 id="clear-token-btn"
                 onClick={() => {
-                  setTokenInput("");
+                  setGithubInput("");
+                  setIsGithubModified(true);
                   setGithubToken("");
                   localStorage.removeItem("github_pat_token");
                 }}

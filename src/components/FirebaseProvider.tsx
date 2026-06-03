@@ -22,6 +22,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from "../firebase";
 import { Student } from "../types";
+import { secureKey, resolveKey } from "../utils/crypto";
 
 interface AuthContextType {
   user: User | null;
@@ -71,7 +72,16 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
             await setDoc(mentorRef, newMentor);
             setMentor(newMentor);
           } else {
-            setMentor(mentorSnap.data());
+            const data = mentorSnap.data();
+            const resolvedGemini = currentUser.uid ? resolveKey(data?.geminiApiKey || "", currentUser.uid) : (data?.geminiApiKey || "");
+            const resolvedOpenai = currentUser.uid ? resolveKey(data?.openaiApiKey || "", currentUser.uid) : (data?.openaiApiKey || "");
+            console.log("[CLIENT DIAG] getDoc - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
+            const decrypted = data ? {
+              ...data,
+              geminiApiKey: resolvedGemini,
+              openaiApiKey: resolvedOpenai,
+            } : null;
+            setMentor(decrypted);
           }
         } catch (error) {
           console.error("Error setting up mentor profile in Firestore:", error);
@@ -92,7 +102,16 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     const mentorRef = doc(db, "mentors", user.uid);
     const unsubscribe = onSnapshot(mentorRef, (snap) => {
       if (snap.exists()) {
-        setMentor(snap.data());
+        const data = snap.data();
+        const resolvedGemini = user.uid ? resolveKey(data?.geminiApiKey || "", user.uid) : (data?.geminiApiKey || "");
+        const resolvedOpenai = user.uid ? resolveKey(data?.openaiApiKey || "", user.uid) : (data?.openaiApiKey || "");
+        console.log("[CLIENT DIAG] onSnapshot - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
+        const decrypted = data ? {
+          ...data,
+          geminiApiKey: resolvedGemini,
+          openaiApiKey: resolvedOpenai,
+        } : null;
+        setMentor(decrypted);
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `mentors/${user.uid}`);
@@ -158,9 +177,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const saveGeminiApiKey = async (key: string) => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
+    const secured = secureKey(key, user.uid);
+    console.log("[CLIENT DIAG] saveGeminiApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
     try {
       await updateDoc(mentorRef, {
-        geminiApiKey: key.trim(),
+        geminiApiKey: secured,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
@@ -171,9 +192,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const saveOpenaiApiKey = async (key: string) => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
+    const secured = secureKey(key, user.uid);
+    console.log("[CLIENT DIAG] saveOpenaiApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
     try {
       await updateDoc(mentorRef, {
-        openaiApiKey: key.trim(),
+        openaiApiKey: secured,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {

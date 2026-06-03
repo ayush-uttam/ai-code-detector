@@ -7,6 +7,7 @@ import {
   Upload, 
   Plus, 
   Trash2, 
+  Edit2,
   AlertTriangle, 
   CheckCircle, 
   Loader2, 
@@ -32,7 +33,13 @@ export default function StudentList({
   onAnalyzeStudent,
   onAnalyzeAll,
 }: StudentListProps) {
-  const { addStudent, addStudentsBatch, removeStudent: firestoreRemoveStudent, clearAllStudents: firestoreClearAllStudents } = useFirebase();
+  const { 
+    addStudent, 
+    addStudentsBatch, 
+    removeStudent: firestoreRemoveStudent, 
+    clearAllStudents: firestoreClearAllStudents,
+    updateStudent
+  } = useFirebase();
   const [dragActive, setDragActive] = useState(false);
   const [filterStr, setFilterStr] = useState("");
   const [riskFilter, setRiskFilter] = useState<"all" | "high" | "medium" | "low" | "pending">( "all");
@@ -40,6 +47,7 @@ export default function StudentList({
   
   // Manual adding state
   const [showManualForm, setShowManualForm] = useState(false);
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [manualName, setManualName] = useState("");
   const [manualRoll, setManualRoll] = useState("");
   const [manualRepo, setManualRepo] = useState("");
@@ -150,6 +158,16 @@ export default function StudentList({
     fileInputRef.current?.click();
   };
 
+  const handleEditClick = (student: Student, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingStudentId(student.id);
+    setManualName(student.name);
+    setManualRoll(student.rollNo);
+    setManualRepo(student.githubUrl);
+    setManualError("");
+    setShowManualForm(true);
+  };
+
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setManualError("");
@@ -168,15 +186,40 @@ export default function StudentList({
     }
 
     try {
-      await addStudent(manualName.trim(), manualRoll.trim(), manualRepo.trim());
+      if (editingStudentId) {
+        const studentToEdit = students.find(s => s.id === editingStudentId);
+        if (studentToEdit) {
+          const isRepoChanged = studentToEdit.githubUrl !== manualRepo.trim();
+          const updates: Partial<Student> = {
+            name: manualName.trim(),
+            rollNo: manualRoll.trim(),
+            githubUrl: manualRepo.trim(),
+          };
+
+          if (isRepoChanged) {
+            updates.status = "pending";
+            updates.errorMsg = null as any;
+            updates.files = null as any;
+            updates.commits = null as any;
+            updates.activeReport = null as any;
+            updates.analyzedFilename = null as any;
+            updates.modelUsed = null as any;
+          }
+
+          await updateStudent(editingStudentId, updates);
+        }
+      } else {
+        await addStudent(manualName.trim(), manualRoll.trim(), manualRepo.trim());
+      }
       // Clear status
       setManualName("");
       setManualRoll("");
       setManualRepo("");
+      setEditingStudentId(null);
       setShowManualForm(false);
     } catch (err: any) {
       console.error(err);
-      setManualError(err.message || "Could not add student.");
+      setManualError(err.message || "Could not save student.");
     }
   };
 
@@ -243,11 +286,27 @@ export default function StudentList({
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
               id="add-manual-toggle"
-              onClick={() => setShowManualForm(!showManualForm)}
+              onClick={() => {
+                if (showManualForm) {
+                  setShowManualForm(false);
+                  setEditingStudentId(null);
+                  setManualName("");
+                  setManualRoll("");
+                  setManualRepo("");
+                  setManualError("");
+                } else {
+                  setShowManualForm(true);
+                  setEditingStudentId(null);
+                  setManualName("");
+                  setManualRoll("");
+                  setManualRepo("");
+                  setManualError("");
+                }
+              }}
               className="py-1 px-2.5 text-xs font-semibold border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Student</span>
+              <span>{showManualForm && editingStudentId ? "Add Student instead" : "Add Student"}</span>
             </button>
             {students.length > 0 && (
               <button
@@ -292,7 +351,7 @@ export default function StudentList({
           <form id="manual-student-form" onSubmit={handleManualSubmit} className="bg-zinc-950 border border-white/10 rounded-lg p-3 space-y-2.5 text-xs animate-fadeIn">
             <h3 className="font-semibold text-sky-400 flex items-center gap-1">
               <UserCheck className="w-3.5 h-3.5 text-sky-400" />
-              <span>Add Student Repository</span>
+              <span>{editingStudentId ? "Edit Student Details" : "Add Student Repository"}</span>
             </h3>
             
             {manualError && (
@@ -342,7 +401,14 @@ export default function StudentList({
               <button
                 id="cancel-manual-btn"
                 type="button"
-                onClick={() => setShowManualForm(false)}
+                onClick={() => {
+                  setShowManualForm(false);
+                  setEditingStudentId(null);
+                  setManualName("");
+                  setManualRoll("");
+                  setManualRepo("");
+                  setManualError("");
+                }}
                 className="py-1 px-2.5 border border-white/10 rounded hover:bg-white/5 text-zinc-400 transition-colors cursor-pointer text-xs font-semibold"
               >
                 Cancel
@@ -352,7 +418,7 @@ export default function StudentList({
                 type="submit"
                 className="py-1 px-3 bg-sky-500 rounded text-white hover:bg-sky-400 transition-colors font-semibold flex items-center gap-1 cursor-pointer text-xs shadow"
               >
-                Save
+                {editingStudentId ? "Save Changes" : "Save"}
               </button>
             </div>
           </form>
@@ -547,6 +613,15 @@ export default function StudentList({
                       {student.status === "analyzed" ? "Re-Run" : "Analyze"}
                     </button>
                     
+                    <button
+                      id={`edit-student-${student.id}`}
+                      onClick={(e) => handleEditClick(student, e)}
+                      title="Edit Student"
+                      className="p-1 text-zinc-550 hover:text-sky-400 rounded hover:bg-white/5 transition-colors cursor-pointer animate-fadeIn"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
                     <button
                       id={`delete-student-${student.id}`}
                       onClick={(e) => handleDeleteRow(student.id, e)}

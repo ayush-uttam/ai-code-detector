@@ -111,7 +111,14 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       {/* Footer message required by the user */}
       <footer className="absolute bottom-5 text-[10px] text-zinc-600 font-mono text-center">
-        Vibe coded by Ayush Uttam xD
+        <a 
+          href="https://github.com/ayush-uttam"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-sky-400 transition-colors cursor-pointer"
+        >
+          Vibe coded by Ayush Uttam xD
+        </a>
       </footer>
     </div>
   );

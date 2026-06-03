@@ -7,6 +7,7 @@ import TokenSettings from "./components/TokenSettings";
 import LoginPage from "./components/LoginPage";
 import { useFirebase } from "./components/FirebaseProvider";
 import OnboardingTutorial from "./components/OnboardingTutorial";
+import { secureKey, resolveKey } from "./utils/crypto";
 import { 
   Sparkles, 
   ShieldCheck, 
@@ -35,7 +36,12 @@ export default function App() {
     await saveGeminiApiKey(keys.geminiKey);
     await saveOpenaiApiKey(keys.openaiKey);
     setGithubToken(keys.githubToken);
-    localStorage.setItem("github_pat_token", keys.githubToken);
+    if (user?.uid) {
+      const encryptedGithub = secureKey(keys.githubToken, user.uid);
+      localStorage.setItem("github_pat_token", encryptedGithub);
+    } else {
+      localStorage.setItem("github_pat_token", keys.githubToken);
+    }
   };
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -45,13 +51,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"report" | "code">("report");
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
 
-  // Load custom GitHub Token from local storage on mount
+  // Load custom GitHub Token from local storage on auth change
   useEffect(() => {
-    const savedToken = localStorage.getItem("github_pat_token");
-    if (savedToken) {
-      setGithubToken(savedToken);
+    if (user?.uid) {
+      const savedToken = localStorage.getItem("github_pat_token");
+      if (savedToken) {
+        setGithubToken(resolveKey(savedToken, user.uid));
+      } else {
+        setGithubToken("");
+      }
+    } else {
+      setGithubToken("");
     }
-  }, []);
+  }, [user?.uid]);
 
   // Set default selected student when student list loads or changes
   useEffect(() => {
@@ -555,9 +567,14 @@ export default function App() {
       <footer className="bg-zinc-950 border-t border-white/10 py-5 mt-auto">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[10px] text-zinc-500 font-mono tracking-wide">
           <span>AI Code Detector &bull; Powered by Google Gemini &bull; Secure Academic Cloud Suite</span>
-          <span className="text-zinc-400 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center">
+          <a 
+            href="https://github.com/ayush-uttam"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-zinc-400 hover:text-sky-450 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center transition-colors cursor-pointer"
+          >
             Vibe coded by Ayush Uttam xD
-          </span>
+          </a>
         </div>
       </footer>
 
