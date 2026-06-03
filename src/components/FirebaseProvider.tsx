@@ -32,6 +32,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   saveGeminiApiKey: (key: string) => Promise<void>;
   saveOpenaiApiKey: (key: string) => Promise<void>;
+  saveTutorialCompleted: (completed: boolean) => Promise<void>;
   addStudent: (name: string, rollNo: string, githubUrl: string) => Promise<void>;
   addStudentsBatch: (studentsList: Omit<Student, "id">[]) => Promise<void>;
   updateStudent: (studentId: string, updates: Partial<Student>) => Promise<void>;
@@ -63,6 +64,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               email: currentUser.email || "",
               name: currentUser.displayName || "Educator",
               geminiApiKey: "",
+              openaiApiKey: "",
+              tutorialCompleted: false,
               createdAt: serverTimestamp(),
             };
             await setDoc(mentorRef, newMentor);
@@ -178,6 +181,19 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const saveTutorialCompleted = async (completed: boolean) => {
+    if (!user) return;
+    const mentorRef = doc(db, "mentors", user.uid);
+    try {
+      await updateDoc(mentorRef, {
+        tutorialCompleted: completed,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `mentors/${user.uid}`);
+    }
+  };
+
   const addStudent = async (name: string, rollNo: string, githubUrl: string) => {
     if (!user) return;
     const path = "students";
@@ -270,6 +286,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       logout,
       saveGeminiApiKey,
       saveOpenaiApiKey,
+      saveTutorialCompleted,
       addStudent,
       addStudentsBatch,
       updateStudent,

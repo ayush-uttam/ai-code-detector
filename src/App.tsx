@@ -6,6 +6,7 @@ import CodeInspector from "./components/CodeInspector";
 import TokenSettings from "./components/TokenSettings";
 import LoginPage from "./components/LoginPage";
 import { useFirebase } from "./components/FirebaseProvider";
+import OnboardingTutorial from "./components/OnboardingTutorial";
 import { 
   Sparkles, 
   ShieldCheck, 
@@ -26,8 +27,16 @@ export default function App() {
     logout,
     saveGeminiApiKey,
     saveOpenaiApiKey,
+    saveTutorialCompleted,
     updateStudent,
   } = useFirebase();
+
+  const handleSaveOnboardingKeys = async (keys: { geminiKey: string; githubToken: string; openaiKey: string }) => {
+    await saveGeminiApiKey(keys.geminiKey);
+    await saveOpenaiApiKey(keys.openaiKey);
+    setGithubToken(keys.githubToken);
+    localStorage.setItem("github_pat_token", keys.githubToken);
+  };
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [githubToken, setGithubToken] = useState<string>("");
@@ -291,6 +300,17 @@ export default function App() {
   // Core LoginPage gating auth state
   if (!user) {
     return <LoginPage onLogin={loginWithGoogle} />;
+  }
+
+  // Onboarding Wizard gating tutorial state
+  if (mentor && mentor.tutorialCompleted !== true) {
+    return (
+      <OnboardingTutorial 
+        onSaveKeys={handleSaveOnboardingKeys} 
+        onComplete={() => saveTutorialCompleted(true)} 
+        onSignOut={logout}
+      />
+    );
   }
 
   return (

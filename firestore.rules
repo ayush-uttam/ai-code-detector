@@ -37,7 +37,8 @@ service cloud.firestore {
       return data.email is string && data.email.size() <= 256 &&
              data.name is string && data.name.size() <= 256 &&
              (!('geminiApiKey' in data) || (data.geminiApiKey is string && data.geminiApiKey.size() <= 512)) &&
-             (!('openaiApiKey' in data) || (data.openaiApiKey is string && data.openaiApiKey.size() <= 512));
+             (!('openaiApiKey' in data) || (data.openaiApiKey is string && data.openaiApiKey.size() <= 512)) &&
+             (!('tutorialCompleted' in data) || data.tutorialCompleted is bool);
     }
 
     function isValidStudent(data) {
