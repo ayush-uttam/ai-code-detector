@@ -111,7 +111,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
       {/* Footer message required by the user */}
       <footer className="absolute bottom-5 text-[10px] text-zinc-600 font-mono text-center">
-        Made by Ayush Uttam
+        Vibe coded by Ayush Uttam xD
       </footer>
     </div>
   );

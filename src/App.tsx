@@ -536,7 +536,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[10px] text-zinc-500 font-mono tracking-wide">
           <span>AI Code Detector &bull; Powered by Google Gemini &bull; Secure Academic Cloud Suite</span>
           <span className="text-zinc-400 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center">
-            Made by Ayush Uttam
+            Vibe coded by Ayush Uttam xD
           </span>
         </div>
       </footer>
