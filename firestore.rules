@@ -46,10 +46,10 @@ service cloud.firestore {
              data.rollNo is string && data.rollNo.size() <= 128 &&
              data.githubUrl is string && data.githubUrl.size() <= 512 &&
              data.status is string && data.status.size() <= 64 &&
-             (!('errorMsg' in data) || data.errorMsg is string && data.errorMsg.size() <= 4096) &&
-             (!('analyzedFilename' in data) || data.analyzedFilename is string && data.analyzedFilename.size() <= 512) &&
-             (!('modelUsed' in data) || data.modelUsed is string && data.modelUsed.size() <= 128) &&
-             (!('activeReport' in data) || data.activeReport is map);
+             (!('errorMsg' in data) || data.errorMsg == null || (data.errorMsg is string && data.errorMsg.size() <= 4096)) &&
+             (!('analyzedFilename' in data) || data.analyzedFilename == null || (data.analyzedFilename is string && data.analyzedFilename.size() <= 512)) &&
+             (!('modelUsed' in data) || data.modelUsed == null || (data.modelUsed is string && data.modelUsed.size() <= 128)) &&
+             (!('activeReport' in data) || data.activeReport == null || data.activeReport is map);
     }
 
     // --- COLLECTION RULES ---
