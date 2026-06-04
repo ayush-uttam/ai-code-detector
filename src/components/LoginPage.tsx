@@ -103,23 +103,30 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <span>{loading ? "Authenticating..." : "Sign in with Google"}</span>
         </button>
 
-        {/* Subdued Academic Tagline */}
-        <span className="text-[9px] text-zinc-600 mt-6 font-mono tracking-wider uppercase">
-          Google Cloud Secure &bull; Academic Suite v2
-        </span>
+        {/* Footer message required by the user */}
+        <div className="mt-4">
+          <span className="font-display text-sm text-zinc-500">
+            Made by{" "}
+            <a 
+              href="https://github.com/ayush-uttam"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-300 hover:text-sky-400 transition-colors cursor-pointer"
+            >
+              Ayush
+            </a>{" "}
+            &amp;{" "}
+            <a 
+              href="https://github.com/AnujMishra301"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-300 hover:text-sky-400 transition-colors cursor-pointer"
+            >
+              Anuj
+            </a>
+          </span>
+        </div>
       </div>
-
-      {/* Footer message required by the user */}
-      <footer className="absolute bottom-5 text-[10px] text-zinc-600 font-mono text-center">
-        <a 
-          href="https://github.com/ayush-uttam"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-sky-400 transition-colors cursor-pointer"
-        >
-          Vibe coded by Ayush Uttam xD
-        </a>
-      </footer>
     </div>
   );
 }
