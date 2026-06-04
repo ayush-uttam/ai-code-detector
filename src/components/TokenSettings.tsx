@@ -135,11 +135,11 @@ export default function TokenSettings({
     }
   };
 
-  const handleSaveToken = () => {
+  const handleSaveToken = async () => {
     if (!isGithubModified) return;
     setGithubToken(githubInput);
     if (user?.uid) {
-      const encrypted = secureKey(githubInput, user.uid);
+      const encrypted = await secureKey(githubInput, user.uid);
       localStorage.setItem("github_pat_token", encrypted);
     } else {
       localStorage.setItem("github_pat_token", githubInput);

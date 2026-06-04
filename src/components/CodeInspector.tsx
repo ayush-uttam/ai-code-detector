@@ -235,12 +235,12 @@ export default function CodeInspector({
                     bgStyle = isSelected 
                       ? "bg-rose-500/20 border-l-4 border-rose-500" 
                       : "bg-rose-950/30 border-l-4 border-rose-605/50 hover:bg-rose-950/40";
-                    indicatorDot = <Sparkles className="w-3 h-3 text-rose-400 shrink-0 self-center" title="AI Template Clue" />;
+                    indicatorDot = <span title="AI Template Clue" className="shrink-0 self-center flex items-center justify-center"><Sparkles className="w-3 h-3 text-rose-400" /></span>;
                   } else {
                     bgStyle = isSelected 
                       ? "bg-emerald-500/20 border-l-4 border-emerald-500" 
                       : "bg-emerald-950/30 border-l-4 border-emerald-605/50 hover:bg-emerald-950/40";
-                    indicatorDot = <User className="w-3 h-3 text-emerald-400 shrink-0 self-center" title="Human Handwriting Marker" />;
+                    indicatorDot = <span title="Human Handwriting Marker" className="shrink-0 self-center flex items-center justify-center"><User className="w-3 h-3 text-emerald-400" /></span>;
                   }
                 } else {
                   bgStyle = "border-l-4 border-transparent hover:bg-white/5";

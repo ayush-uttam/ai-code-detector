@@ -19,6 +19,14 @@ export interface HumanComparison {
   styleQuirkNotes: string;
 }
 
+export interface ExplanationSignal {
+  name: string;
+  weight: number;
+  score: number;
+  evidence: string;
+  contribution: number;
+}
+
 export interface Report {
   probabilityScore: number;
   confidenceRating: "Low" | "Medium" | "High";
@@ -27,6 +35,8 @@ export interface Report {
   lineAnnotations: LineAnnotation[];
   humanComparison: HumanComparison;
   analyzedAt: string;
+  llmProbabilityScore?: number;
+  scoringSignals?: ExplanationSignal[];
 }
 
 export interface CodeFile {
