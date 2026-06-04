@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import StudentList from "./components/StudentList";
 import ReportViewer from "./components/ReportViewer";
 import CodeInspector from "./components/CodeInspector";
@@ -36,6 +36,7 @@ export default function App() {
     saveGrokApiKey,
     saveTutorialCompleted,
     updateStudent,
+    setSelectedStudentId: rawSetSelectedStudentId,
   } = useFirebase();
 
   const { githubToken, saveGithubToken } = useGithubToken(user?.uid);
@@ -74,7 +75,7 @@ export default function App() {
     aiProvider,
     geminiModel,
     updateStudent,
-    setSelectedStudentId,
+    setSelectedStudentId: rawSetSelectedStudentId,
     setView,
     setFinishedNotification,
   });
@@ -89,10 +90,32 @@ export default function App() {
     saveGithubToken(keys.githubToken);
   };
 
+  const cancelAnalysisRef = useRef(false);
+
+  const handleStopAnalysis = async () => {
+    cancelAnalysisRef.current = true;
+    const activeStudents = students.filter(s => s.status === "analyzing" || s.status === "fetching");
+    for (const student of activeStudents) {
+      try {
+        await updateStudent(student.id, { 
+          status: "pending", 
+          errorMsg: "Analysis stopped by user." 
+        });
+      } catch (err) {
+        console.error("Error stopping student analysis:", err);
+      }
+    }
+  };
+
   const handleAnalyzeAll = async () => {
+    cancelAnalysisRef.current = false;
     const pendingStudents = students.filter(s => s.status !== "analyzing" && s.status !== "fetching");
     for (const student of pendingStudents) {
-      await handleAnalyzeStudent(student, false);
+      if (cancelAnalysisRef.current) {
+        console.log("Bulk analysis stopped.");
+        break;
+      }
+      await handleAnalyzeStudent(student, false, true);
     }
   };
 
@@ -179,6 +202,7 @@ export default function App() {
                   setSelectedStudentId={setSelectedStudentId}
                   onAnalyzeStudent={handleAnalyzeStudent}
                   onAnalyzeAll={handleAnalyzeAll}
+                  onStopAnalysis={handleStopAnalysis}
                   onPrintAll={() => setPrintTarget({ type: "all" })}
                 />
               </ErrorBoundary>

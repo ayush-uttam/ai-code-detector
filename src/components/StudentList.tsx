@@ -27,6 +27,7 @@ interface StudentListProps {
   setSelectedStudentId: (id: string | null) => void;
   onAnalyzeStudent: (student: Student, forceRefetch?: boolean, preventRedirect?: boolean) => void;
   onAnalyzeAll: () => void;
+  onStopAnalysis?: () => void;
   onPrintAll?: () => void;
 }
 
@@ -36,6 +37,7 @@ export default function StudentList({
   setSelectedStudentId,
   onAnalyzeStudent,
   onAnalyzeAll,
+  onStopAnalysis,
   onPrintAll,
 }: StudentListProps) {
   const { 
@@ -360,15 +362,26 @@ export default function StudentList({
                   </div>
                 )}
 
-                <button
-                  id="analyze-all-btn"
-                  onClick={onAnalyzeAll}
-                  disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
-                  className="py-1 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
-                >
-                  <BarChart2 className="w-3.5 h-3.5" />
-                  <span>Analyze Grid Repos</span>
-                </button>
+                {students.some(s => s.status === "analyzing" || s.status === "fetching") ? (
+                  <button
+                    id="stop-analysis-btn"
+                    onClick={() => onStopAnalysis?.()}
+                    className="py-1 px-3 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg transition-all shadow flex items-center gap-1.5 cursor-pointer shrink-0 animate-pulse"
+                  >
+                    <span className="w-2 h-2 bg-white rounded-sm" />
+                    <span>Stop Analysis</span>
+                  </button>
+                ) : (
+                  <button
+                    id="analyze-all-btn"
+                    onClick={onAnalyzeAll}
+                    disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
+                    className="py-1 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
+                  >
+                    <BarChart2 className="w-3.5 h-3.5" />
+                    <span>Analyze Grid Repos</span>
+                  </button>
+                )}
 
                 <button
                   id="clear-all-btn"
