@@ -56,34 +56,44 @@ export default function TokenSettings({
   const [showOpenai, setShowOpenai] = useState(false);
 
   useEffect(() => {
-    if (customGeminiKey) {
-      setGeminiInput("••••••••••••••••••••••••••••••••");
-      setIsGeminiModified(false);
-    } else {
-      setGeminiInput("");
-      setIsGeminiModified(true);
+    if (!isGeminiModified) {
+      if (customGeminiKey) {
+        setGeminiInput(showGeminiKey ? customGeminiKey : "••••••••••••••••••••••••••••••••");
+      } else {
+        setGeminiInput("");
+      }
     }
-  }, [customGeminiKey]);
+  }, [customGeminiKey, showGeminiKey, isGeminiModified]);
 
   useEffect(() => {
-    if (customGrokKey) {
-      setGrokInput("••••••••••••••••••••••••••••••••");
-      setIsGrokModified(false);
-    } else {
-      setGrokInput("");
-      setIsGrokModified(true);
+    if (!isGrokModified) {
+      if (customGrokKey) {
+        setGrokInput(showGrokKey ? customGrokKey : "••••••••••••••••••••••••••••••••");
+      } else {
+        setGrokInput("");
+      }
     }
-  }, [customGrokKey]);
+  }, [customGrokKey, showGrokKey, isGrokModified]);
 
   useEffect(() => {
-    if (customOpenaiKey) {
-      setOpenaiInput("••••••••••••••••••••••••••••••••");
-      setIsOpenaiModified(false);
-    } else {
-      setOpenaiInput("");
-      setIsOpenaiModified(true);
+    if (!isOpenaiModified) {
+      if (customOpenaiKey) {
+        setOpenaiInput(showOpenai ? customOpenaiKey : "••••••••••••••••••••••••••••••••");
+      } else {
+        setOpenaiInput("");
+      }
     }
-  }, [customOpenaiKey]);
+  }, [customOpenaiKey, showOpenai, isOpenaiModified]);
+
+  useEffect(() => {
+    if (!isGithubModified) {
+      if (githubToken) {
+        setGithubInput(showGithubToken ? githubToken : "••••••••••••••••••••••••••••••••");
+      } else {
+        setGithubInput("");
+      }
+    }
+  }, [githubToken, showGithubToken, isGithubModified]);
 
   const handleGithubChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -136,6 +146,7 @@ export default function TokenSettings({
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    setGithubInput(showGithubToken ? githubInput : "••••••••••••••••••••••••••••••••");
     setIsGithubModified(false);
   };
 
@@ -145,6 +156,7 @@ export default function TokenSettings({
       await onSaveCustomGeminiKey(geminiInput);
       setGeminiSaved(true);
       setTimeout(() => setGeminiSaved(false), 2000);
+      setGeminiInput(showGeminiKey ? geminiInput : "••••••••••••••••••••••••••••••••");
       setIsGeminiModified(false);
     } catch (err) {
       console.error(err);
@@ -158,6 +170,7 @@ export default function TokenSettings({
       await onSaveCustomGrokKey(grokInput);
       setGrokSaved(true);
       setTimeout(() => setGrokSaved(false), 2000);
+      setGrokInput(showGrokKey ? grokInput : "••••••••••••••••••••••••••••••••");
       setIsGrokModified(false);
     } catch (err) {
       console.error(err);
@@ -171,6 +184,7 @@ export default function TokenSettings({
       await onSaveCustomOpenaiKey(openaiInput);
       setOpenaiSaved(true);
       setTimeout(() => setOpenaiSaved(false), 2000);
+      setOpenaiInput(showOpenai ? openaiInput : "••••••••••••••••••••••••••••••••");
       setIsOpenaiModified(false);
     } catch (err) {
       console.error(err);
@@ -446,7 +460,7 @@ export default function TokenSettings({
                   id="gemini-key-input"
                   type={showGeminiKey ? "text" : "password"}
                   placeholder="AIzaSy..."
-                  value={showGeminiKey ? (isGeminiModified ? geminiInput : customGeminiKey) : geminiInput}
+                  value={geminiInput}
                   onChange={handleGeminiChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
@@ -496,7 +510,7 @@ export default function TokenSettings({
                   id="grok-key-input"
                   type={showGrokKey ? "text" : "password"}
                   placeholder="xai-..."
-                  value={showGrokKey ? (isGrokModified ? grokInput : customGrokKey) : grokInput}
+                  value={grokInput}
                   onChange={handleGrokChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
@@ -546,7 +560,7 @@ export default function TokenSettings({
                   id="openai-key-input"
                   type={showOpenai ? "text" : "password"}
                   placeholder="sk-proj-..."
-                  value={showOpenai ? (isOpenaiModified ? openaiInput : customOpenaiKey) : openaiInput}
+                  value={openaiInput}
                   onChange={handleOpenaiChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
@@ -596,7 +610,7 @@ export default function TokenSettings({
                   id="github-token-input"
                   type={showGithubToken ? "text" : "password"}
                   placeholder="ghp_xxxxxxxxxxxx"
-                  value={showGithubToken ? (isGithubModified ? githubInput : githubToken) : githubInput}
+                  value={githubInput}
                   onChange={handleGithubChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />

@@ -265,6 +265,20 @@ app.post("/api/github/fetch-files", async (req: express.Request, res: express.Re
   }
 });
 
+let lastLlmCallTime = 0;
+
+async function rateLimitLlmCall() {
+  const minSpacing = 4250; // 4.25 seconds spacing to stay strictly under 15 RPM
+  const now = Date.now();
+  const elapsed = now - lastLlmCallTime;
+  if (elapsed < minSpacing) {
+    const delayMs = minSpacing - elapsed;
+    console.log(`[RATE LIMIT] Delaying next LLM call by ${delayMs}ms to respect the 15 RPM limit.`);
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+  lastLlmCallTime = Date.now();
+}
+
 // 3. Analyze Code File matching pattern to detect AI
 app.post("/api/analyze/code", async (req: express.Request, res: express.Response) => {
   const { provider = "gemini", code, filename, files, rollNo, studentName, modelName } = req.body;
@@ -297,6 +311,8 @@ app.post("/api/analyze/code", async (req: express.Request, res: express.Response
     return;
   }
 
+
+
   try {
     const systemPrompt = isMultiFile 
       ? `You are a world-class academic code integrity inspector and forensic software analyst specializing in distinguishing LLM-generated source code from human-crafted student solutions.
@@ -305,10 +321,9 @@ Your objective is to thoroughly verify the submitted repository files and genera
 
 For each individual file in 'fileBreakdowns', assign a score (0 to 100) and highlight AI vs human traits. You must evaluate each file completely independently based on its own contents. Do not let the presence of AI templates or patterns in one file bias the scores of other files in the repository. Each file's score must be derived solely from its own stylistic cues and characteristics.
 Use these balanced grading guidelines for each file breakdown:
-- Active AI Evidence Required: Only assign a high AI probability score (>=50%) if you find positive indicators of AI usage (such as the specific AI signatures described below, e.g., over-explained comments describing trivial operations, polite placeholders, or typical LLM tutorial boilerplate). If the code is simply well-written, clean, and has reasonable comments but lacks actual AI structural signatures, it must be scored as low risk (0-30%).
-- Do NOT flag code as AI-generated simply because it is clean, well-formatted, or compiles successfully. Standard code formatters (like Prettier, ESLint, or Black) and modern IDEs auto-generate formatting, alphabetical imports, and clean spacing. These are NOT indicators of AI.
-- If the code contains a mixture of clear human quirks (irregular formatting, comments containing typos, slang, local names, unfinished/disabled segments) and AI-looking code, score it as a hybrid mix (35% to 65% AI Probability).
-- Do not artificially raise the score unless you find distinct, genuine AI indicators.
+- Strict Rigorous Grading: Be highly critical. If the code exhibits a textbook-perfect structure, uses standard tutorial templates, or contains detailed inline documentation describing obvious logic, default to a high AI probability score (>=60%). Students heavily rely on AI for assignments; a complete lack of human programming errors, spelling typos in comments, or formatting discrepancies is in itself an indicator of AI assistance.
+- Hybrid Mix & Copied Templates: If the code displays a mixture of human quirks (sloppy spacing, slang comments) and machine-like algorithmic blocks (such as Brian Kernighan's bit count, optimized sorting, or perfect helper routines), evaluate this strictly as an AI-assisted hybrid (50% to 80% AI Probability).
+- Moderate Baseline for Doubt: If the code is clean, has reasonable comments, and lacks explicit AI placeholders, but its algorithmic density is unusually perfect for an academic student, assign a moderate-to-high score (40% to 60% AI Probability). Only score as low risk (0-25%) if you find clear, active human fingerprints throughout the entire codebase.
 
 Also compute an overall repository AI usage probability score and a global verdict summary. The overall repository score should reflect the aggregate probability across all files proportionately (e.g. if only a small/insignificant file is AI-generated and the rest is human, the repository score should not be artificially inflated to a high overall value).
 
@@ -380,9 +395,9 @@ CRITICAL SEARCH MARKERS:
    - Presence of polite placeholders or formatted "TODO" marks capitalized like a title (e.g., "// TODO: Implement proper exception mapping").
 
 GRADING METRIC INSTRUCTIONS:
-- Active AI Evidence Required: Only assign a high AI probability score (>=50%) if you find positive indicators of AI usage (such as the specific AI signatures described below, e.g., over-explained comments describing trivial operations, polite placeholders, or typical LLM tutorial boilerplate). If the code is simply well-written, clean, and has reasonable comments but lacks actual AI structural signatures, it must be scored as low risk (0-30%).
-- Do NOT flag code as AI-generated simply because it is clean, well-formatted, or compiles successfully. Standard code formatters (like Prettier, ESLint, or Black) and modern IDEs auto-generate formatting, alphabetical imports, and clean spacing. These are NOT indicators of AI.
-- If the code contains a mixture of clear human quirks (irregular formatting, comments containing typos, slang, local names, unfinished/disabled segments) and AI-looking code, score it as a hybrid mix (35% to 65% AI Probability).
+- Strict Rigorous Grading: Be highly critical. If the code exhibits a textbook-perfect structure, uses standard tutorial templates, or contains detailed inline documentation describing obvious logic, default to a high AI probability score (>=60%). Students heavily rely on AI for assignments; a complete lack of human programming errors, spelling typos in comments, or formatting discrepancies is in itself an indicator of AI assistance.
+- Hybrid Mix & Copied Templates: If the code displays a mixture of human quirks (sloppy spacing, slang comments) and machine-like algorithmic blocks (such as Brian Kernighan's bit count, optimized sorting, or perfect helper routines), evaluate this strictly as an AI-assisted hybrid (50% to 80% AI Probability).
+- Moderate Baseline for Doubt: If the code is clean, has reasonable comments, and lacks explicit AI placeholders, but its algorithmic density is unusually perfect for an academic student, assign a moderate-to-high score (40% to 60% AI Probability). Only score as low risk (0-25%) if you find clear, active human fingerprints throughout the entire codebase.
 - Highlight specific suspicious lines in the lineAnnotations list so the instructor can see the exact evidence.
 
 CRITICAL LINE NUMBERING INSTRUCTION:
@@ -478,6 +493,7 @@ ${numberedCode}
   }
 }`;
 
+      await rateLimitLlmCall();
       const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -580,6 +596,7 @@ ${numberedCode}
   }
 }`;
 
+      await rateLimitLlmCall();
       const grokResponse = await fetch("https://api.xai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -805,6 +822,7 @@ ${numberedCode}
       ]
     };
 
+    await rateLimitLlmCall();
     const response = await ai.models.generateContent({
       model: activeModelName,
       contents: userMessage,
