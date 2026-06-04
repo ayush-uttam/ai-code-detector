@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { fetchFilesFromGithub } from "../utils/githubUtils";
+import { fetchFilesFromGithub } from "../utils/githubUtils.js";
 
 export async function handleGithubFetchFiles(req: Request, res: Response): Promise<void> {
   const { repoUrl, token } = req.body;

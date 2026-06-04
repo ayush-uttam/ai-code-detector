@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { getGeminiClient, resolveModelName } from "../services/aiService";
-import { rateLimitLlmCall } from "../utils/rateLimit";
-import { getSystemPrompt, getResponseSchemaText, getActiveResponseSchema } from "../prompts/analysisPrompts";
+import { getGeminiClient, resolveModelName } from "../services/aiService.js";
+import { rateLimitLlmCall } from "../utils/rateLimit.js";
+import { getSystemPrompt, getResponseSchemaText, getActiveResponseSchema } from "../prompts/analysisPrompts.js";
 
 export async function handleCodeAnalyze(req: Request, res: Response): Promise<void> {
   const { provider = "gemini", code, filename, files, rollNo, studentName, modelName } = req.body;

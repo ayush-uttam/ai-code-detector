@@ -2,8 +2,8 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
-import { handleGithubFetchFiles } from "./server/controllers/githubController";
-import { handleCodeAnalyze } from "./server/controllers/analyzeController";
+import { handleGithubFetchFiles } from "./server/controllers/githubController.js";
+import { handleCodeAnalyze } from "./server/controllers/analyzeController.js";
 
 dotenv.config();
 
