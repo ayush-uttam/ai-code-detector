@@ -98,6 +98,17 @@ service cloud.firestore {
 
       allow delete: if isVerified() && 
                        isOwner(existing().mentorId);
+
+      // Sub-collections under students/{studentId}
+      match /files/{fileId} {
+        allow read, write: if isVerified() && 
+                             isOwner(get(/databases/$(database)/documents/students/$(studentId)).data.mentorId);
+      }
+
+      match /commits/{commitId} {
+        allow read, write: if isVerified() && 
+                             isOwner(get(/databases/$(database)/documents/students/$(studentId)).data.mentorId);
+      }
     }
   }
 }

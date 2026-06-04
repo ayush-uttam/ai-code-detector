@@ -18,10 +18,11 @@ import {
   addDoc, 
   deleteDoc, 
   getDocs, 
-  serverTimestamp 
+  serverTimestamp,
+  deleteField 
 } from "firebase/firestore";
 import { auth, db, googleProvider, handleFirestoreError, OperationType } from "../firebase";
-import { Student } from "../types";
+import { Student, CodeFile, CommitInfo } from "../types";
 import { secureKey, resolveKey } from "../utils/crypto";
 
 interface AuthContextType {
@@ -29,6 +30,8 @@ interface AuthContextType {
   mentor: any | null;
   loading: boolean;
   students: Student[];
+  selectedStudentId: string | null;
+  setSelectedStudentId: (id: string | null) => void;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   saveGeminiApiKey: (key: string) => Promise<void>;
@@ -47,8 +50,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [mentor, setMentor] = useState<any | null>(null);
-  const [students, setStudents] = useState<Student[]>([]);
+  const [rawStudents, setRawStudents] = useState<Student[]>([]);
+  const [loadedDetails, setLoadedDetails] = useState<Record<string, { files?: CodeFile[], commits?: CommitInfo[] }>>({});
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Derive students list by combining raw database metadata with dynamically loaded details
+  const students = rawStudents.map(s => {
+    const cached = loadedDetails[s.id];
+    return {
+      ...s,
+      files: cached?.files ?? s.files,
+      commits: cached?.commits ?? s.commits,
+    };
+  });
 
   // Monitor auth status
   useEffect(() => {
@@ -56,7 +71,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser);
       
       if (currentUser) {
-        // Fetch or create Mentor profile document
         const mentorRef = doc(db, "mentors", currentUser.uid);
         try {
           const mentorSnap = await getDoc(mentorRef);
@@ -75,9 +89,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
             setMentor(newMentor);
           } else {
             const data = mentorSnap.data();
-            const resolvedGemini = currentUser.uid ? resolveKey(data?.geminiApiKey || "", currentUser.uid) : (data?.geminiApiKey || "");
-            const resolvedOpenai = currentUser.uid ? resolveKey(data?.openaiApiKey || "", currentUser.uid) : (data?.openaiApiKey || "");
-            const resolvedGrok = currentUser.uid ? resolveKey(data?.grokApiKey || "", currentUser.uid) : (data?.grokApiKey || "");
+            const resolvedGemini = currentUser.uid ? await resolveKey(data?.geminiApiKey || "", currentUser.uid) : (data?.geminiApiKey || "");
+            const resolvedOpenai = currentUser.uid ? await resolveKey(data?.openaiApiKey || "", currentUser.uid) : (data?.openaiApiKey || "");
+            const resolvedGrok = currentUser.uid ? await resolveKey(data?.grokApiKey || "", currentUser.uid) : (data?.grokApiKey || "");
             console.log("[CLIENT DIAG] getDoc - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
             const decrypted = data ? {
               ...data,
@@ -92,7 +106,9 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setMentor(null);
-        setStudents([]);
+        setRawStudents([]);
+        setLoadedDetails({});
+        setSelectedStudentId(null);
       }
       setLoading(false);
     });
@@ -100,16 +116,16 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Listen to active Mentor changes (e.g. Gemini key updates) reactively
+  // Listen to active Mentor changes reactively
   useEffect(() => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
-    const unsubscribe = onSnapshot(mentorRef, (snap) => {
+    const unsubscribe = onSnapshot(mentorRef, async (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        const resolvedGemini = user.uid ? resolveKey(data?.geminiApiKey || "", user.uid) : (data?.geminiApiKey || "");
-        const resolvedOpenai = user.uid ? resolveKey(data?.openaiApiKey || "", user.uid) : (data?.openaiApiKey || "");
-        const resolvedGrok = user.uid ? resolveKey(data?.grokApiKey || "", user.uid) : (data?.grokApiKey || "");
+        const resolvedGemini = user.uid ? await resolveKey(data?.geminiApiKey || "", user.uid) : (data?.geminiApiKey || "");
+        const resolvedOpenai = user.uid ? await resolveKey(data?.openaiApiKey || "", user.uid) : (data?.openaiApiKey || "");
+        const resolvedGrok = user.uid ? await resolveKey(data?.grokApiKey || "", user.uid) : (data?.grokApiKey || "");
         console.log("[CLIENT DIAG] onSnapshot - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
         const decrypted = data ? {
           ...data,
@@ -125,7 +141,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  // Real-time synchronization of Students added for this Mentor
+  // Real-time synchronization of Students metadata added for this Mentor
   useEffect(() => {
     if (!user) return;
 
@@ -150,17 +166,67 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           analyzedFilename: data.analyzedFilename,
           modelUsed: data.modelUsed,
           activeReport: data.activeReport,
-          files: data.files,
-          commits: data.commits,
+          files: data.files, // Fallback legacy access
+          commits: data.commits, // Fallback legacy access
         });
       });
-      setStudents(list);
+      setRawStudents(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, "students");
     });
 
     return () => unsubscribe();
   }, [user]);
+
+  // Real-time listener for sub-collections of the currently selected student
+  useEffect(() => {
+    if (!user || !selectedStudentId) return;
+
+    // 1. Listen to files sub-collection
+    const filesCol = collection(db, "students", selectedStudentId, "files");
+    const unsubscribeFiles = onSnapshot(filesCol, (snap) => {
+      const files: CodeFile[] = [];
+      snap.forEach(docSnap => {
+        files.push(docSnap.data() as CodeFile);
+      });
+      if (files.length > 0) {
+        setLoadedDetails(prev => ({
+          ...prev,
+          [selectedStudentId]: {
+            ...prev[selectedStudentId],
+            files,
+          }
+        }));
+      }
+    }, (error) => {
+      console.error(`Error loading files for student ${selectedStudentId}:`, error);
+    });
+
+    // 2. Listen to commits sub-collection
+    const commitsCol = collection(db, "students", selectedStudentId, "commits");
+    const unsubscribeCommits = onSnapshot(commitsCol, (snap) => {
+      const commits: CommitInfo[] = [];
+      snap.forEach(docSnap => {
+        commits.push(docSnap.data() as CommitInfo);
+      });
+      if (commits.length > 0) {
+        setLoadedDetails(prev => ({
+          ...prev,
+          [selectedStudentId]: {
+            ...prev[selectedStudentId],
+            commits,
+          }
+        }));
+      }
+    }, (error) => {
+      console.error(`Error loading commits for student ${selectedStudentId}:`, error);
+    });
+
+    return () => {
+      unsubscribeFiles();
+      unsubscribeCommits();
+    };
+  }, [user, selectedStudentId]);
 
   const loginWithGoogle = async () => {
     try {
@@ -183,7 +249,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const saveGeminiApiKey = async (key: string) => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
-    const secured = secureKey(key, user.uid);
+    const secured = await secureKey(key, user.uid);
     console.log("[CLIENT DIAG] saveGeminiApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
     try {
       await updateDoc(mentorRef, {
@@ -198,7 +264,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const saveOpenaiApiKey = async (key: string) => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
-    const secured = secureKey(key, user.uid);
+    const secured = await secureKey(key, user.uid);
     console.log("[CLIENT DIAG] saveOpenaiApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
     try {
       await updateDoc(mentorRef, {
@@ -213,7 +279,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const saveGrokApiKey = async (key: string) => {
     if (!user) return;
     const mentorRef = doc(db, "mentors", user.uid);
-    const secured = secureKey(key, user.uid);
+    const secured = await secureKey(key, user.uid);
     console.log("[CLIENT DIAG] saveGrokApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
     try {
       await updateDoc(mentorRef, {
@@ -278,18 +344,61 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const studentRef = doc(db, "students", studentId);
     try {
-      // Create updates payload. Ensure no custom keys breach firestore.rules
       const payload: any = {};
       if (updates.name !== undefined) payload.name = updates.name;
       if (updates.rollNo !== undefined) payload.rollNo = updates.rollNo;
       if (updates.githubUrl !== undefined) payload.githubUrl = updates.githubUrl;
       if (updates.status !== undefined) payload.status = updates.status;
-      if (updates.errorMsg !== undefined) payload.errorMsg = updates.errorMsg;
-      if (updates.analyzedFilename !== undefined) payload.analyzedFilename = updates.analyzedFilename;
-      if (updates.modelUsed !== undefined) payload.modelUsed = updates.modelUsed;
-      if (updates.activeReport !== undefined) payload.activeReport = updates.activeReport;
-      if (updates.files !== undefined) payload.files = updates.files;
-      if (updates.commits !== undefined) payload.commits = updates.commits;
+      
+      if (updates.errorMsg !== undefined) {
+        payload.errorMsg = updates.errorMsg === null ? deleteField() : updates.errorMsg;
+      }
+      if (updates.analyzedFilename !== undefined) {
+        payload.analyzedFilename = updates.analyzedFilename === null ? deleteField() : updates.analyzedFilename;
+      }
+      if (updates.modelUsed !== undefined) {
+        payload.modelUsed = updates.modelUsed === null ? deleteField() : updates.modelUsed;
+      }
+      if (updates.activeReport !== undefined) {
+        payload.activeReport = updates.activeReport === null ? deleteField() : updates.activeReport;
+      }
+
+      // Intercept files and save to sub-collection to avoid 1MB Firestore limit
+      if (updates.files !== undefined && updates.files !== null) {
+        for (const file of updates.files) {
+          const fileId = file.path.replace(/\//g, "___");
+          const fileRef = doc(db, "students", studentId, "files", fileId);
+          await setDoc(fileRef, file);
+        }
+      }
+
+      // Intercept commits and save to sub-collection
+      if (updates.commits !== undefined && updates.commits !== null) {
+        for (const commit of updates.commits) {
+          const commitId = commit.sha || Math.random().toString(36).substring(2, 9);
+          const commitRef = doc(db, "students", studentId, "commits", commitId);
+          await setDoc(commitRef, commit);
+        }
+      }
+
+      // Handle explicit nulls for clearing
+      if (updates.files === null) {
+        const filesCol = collection(db, "students", studentId, "files");
+        const snap = await getDocs(filesCol);
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, "students", studentId, "files", d.id));
+        }
+        payload.files = deleteField();
+      }
+
+      if (updates.commits === null) {
+        const commitsCol = collection(db, "students", studentId, "commits");
+        const snap = await getDocs(commitsCol);
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, "students", studentId, "commits", d.id));
+        }
+        payload.commits = deleteField();
+      }
 
       await updateDoc(studentRef, payload);
     } catch (error) {
@@ -301,6 +410,19 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const studentRef = doc(db, "students", studentId);
     try {
+      // Clean up sub-collections first
+      const filesCol = collection(db, "students", studentId, "files");
+      const filesSnap = await getDocs(filesCol);
+      for (const d of filesSnap.docs) {
+        await deleteDoc(doc(db, "students", studentId, "files", d.id));
+      }
+
+      const commitsCol = collection(db, "students", studentId, "commits");
+      const commitsSnap = await getDocs(commitsCol);
+      for (const d of commitsSnap.docs) {
+        await deleteDoc(doc(db, "students", studentId, "commits", d.id));
+      }
+
       await deleteDoc(studentRef);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `students/${studentId}`);
@@ -313,6 +435,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       const snap = await getDocs(query(collection(db, path), where("mentorId", "==", user.uid)));
       for (const docCheck of snap.docs) {
+        const filesCol = collection(db, path, docCheck.id, "files");
+        const filesSnap = await getDocs(filesCol);
+        for (const d of filesSnap.docs) {
+          await deleteDoc(doc(db, path, docCheck.id, "files", d.id));
+        }
+
+        const commitsCol = collection(db, path, docCheck.id, "commits");
+        const commitsSnap = await getDocs(commitsCol);
+        for (const d of commitsSnap.docs) {
+          await deleteDoc(doc(db, path, docCheck.id, "commits", d.id));
+        }
+
         await deleteDoc(doc(db, path, docCheck.id));
       }
     } catch (error) {
@@ -326,6 +460,8 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       mentor,
       loading,
       students,
+      selectedStudentId,
+      setSelectedStudentId,
       loginWithGoogle,
       logout,
       saveGeminiApiKey,

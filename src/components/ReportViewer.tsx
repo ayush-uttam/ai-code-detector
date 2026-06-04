@@ -199,6 +199,67 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
         </div>
       )}
 
+      {/* Academic Integrity Audit Signals */}
+      {report.scoringSignals && report.scoringSignals.length > 0 && (
+        <div className="apple-glass rounded-xl p-4 sm:p-5 space-y-3.5 animate-fadeIn">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-white/10">
+            <Sliders className="w-4 h-4 text-sky-400" />
+            <h3 className="font-display font-semibold text-white text-sm">Academic Integrity Audit Signals</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {report.scoringSignals.map((sig, idx) => {
+              const score = sig.score;
+              const contribution = sig.contribution;
+              const weightPercent = Math.round(sig.weight * 100);
+              
+              // Color helper matching our dark-mode design system
+              const getProgressBarColor = (s: number) => {
+                if (s >= 70) return "bg-rose-500";
+                if (s >= 30) return "bg-amber-500";
+                return "bg-emerald-500";
+              };
+              
+              const getScoreTextColor = (s: number) => {
+                if (s >= 70) return "text-rose-400";
+                if (s >= 30) return "text-amber-400";
+                return "text-emerald-400";
+              };
+
+              return (
+                <div key={idx} className="bg-zinc-950/60 border border-white/5 rounded-lg p-3.5 space-y-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold text-white leading-tight">{sig.name}</h4>
+                      <span className="text-[10px] text-zinc-500 font-mono">Weight: {weightPercent}%</span>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-xs font-mono font-bold ${getScoreTextColor(score)}`}>
+                        {score}%
+                      </span>
+                      <div className="text-[9px] text-zinc-500 font-mono">
+                        Contrib: +{contribution}%
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      className={`h-full ${getProgressBarColor(score)} transition-all duration-500`}
+                      style={{ width: `${score}%` }}
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-zinc-400 leading-normal font-normal">
+                    {sig.evidence}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 2. Structured Findings & Clues */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         
