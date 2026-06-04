@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getGeminiClient, resolveModelName } from "../services/aiService.js";
 import { rateLimitLlmCall } from "../utils/rateLimit.js";
 import { getSystemPrompt, getResponseSchemaText, getActiveResponseSchema } from "../prompts/analysisPrompts.js";
+import { isValidHttpHeaderValue } from "../utils/validationUtils.js";
 
 export async function handleCodeAnalyze(req: Request, res: Response): Promise<void> {
   const { provider = "gemini", code, filename, files, rollNo, studentName, modelName } = req.body;
@@ -49,12 +50,14 @@ ${numberedCode}
     }
 
     if (provider === "openai") {
-      const openaiApiKey = (customOpenaiApiKey && customOpenaiApiKey.trim() !== "") 
+      const rawApiKey = (customOpenaiApiKey && customOpenaiApiKey.trim() !== "") 
         ? customOpenaiApiKey 
         : process.env.OPENAI_API_KEY;
 
-      if (!openaiApiKey) {
-        throw new Error("OpenAI API access key is not configured. Please set the OPENAI_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI.");
+      const openaiApiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
+
+      if (!openaiApiKey || !isValidHttpHeaderValue(openaiApiKey)) {
+        throw new Error("OpenAI API access key is not configured or is malformed. Please set a valid OPENAI_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI (ensure it contains no spaces, newlines, bullets, or placeholder values).");
       }
 
       const responseSchemaText = getResponseSchemaText(isMultiFile);
@@ -102,12 +105,14 @@ ${numberedCode}
     }
 
     if (provider === "grok") {
-      const grokApiKey = (customGrokApiKey && customGrokApiKey.trim() !== "") 
+      const rawApiKey = (customGrokApiKey && customGrokApiKey.trim() !== "") 
         ? customGrokApiKey 
         : process.env.GROK_API_KEY;
 
-      if (!grokApiKey) {
-        throw new Error("Grok API access key is not configured. Please set the GROK_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI.");
+      const grokApiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
+
+      if (!grokApiKey || !isValidHttpHeaderValue(grokApiKey)) {
+        throw new Error("Grok API access key is not configured or is malformed. Please set a valid GROK_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI (ensure it contains no spaces, newlines, bullets, or placeholder values).");
       }
 
       const responseSchemaText = getResponseSchemaText(isMultiFile);

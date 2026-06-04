@@ -1,9 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
+import { isValidHttpHeaderValue } from "../utils/validationUtils.js";
 
 export const getGeminiClient = (customApiKey?: string) => {
-  const apiKey = (customApiKey && customApiKey.trim() !== "") ? customApiKey : process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Gemini API access key is not configured. Please set the GEMINI_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI.");
+  const rawApiKey = (customApiKey && customApiKey.trim() !== "") ? customApiKey : process.env.GEMINI_API_KEY;
+  const apiKey = typeof rawApiKey === "string" ? rawApiKey.trim() : "";
+
+  if (!apiKey || !isValidHttpHeaderValue(apiKey)) {
+    throw new Error("Gemini API access key is not configured or is malformed. Please set the GEMINI_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI (ensure it contains no spaces, newlines, bullets, or placeholder values).");
   }
   return new GoogleGenAI({
     apiKey: apiKey,

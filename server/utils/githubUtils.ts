@@ -1,3 +1,5 @@
+import { isValidHttpHeaderValue } from "./validationUtils.js";
+
 export function parseGithubUrl(url: string): { owner: string; repo: string } | null {
   if (!url) return null;
   const cleanUrl = url.trim().replace(/\/$/, "");
@@ -26,8 +28,13 @@ export async function fetchFilesFromGithub(repoUrl: string, token?: string) {
     "User-Agent": "AI-Code-Detector-App",
   };
 
-  if (token) {
-    headers["Authorization"] = `token ${token}`;
+  if (token && typeof token === "string") {
+    const trimmedToken = token.trim();
+    if (isValidHttpHeaderValue(trimmedToken)) {
+      headers["Authorization"] = `token ${trimmedToken}`;
+    } else {
+      console.warn("Skipping Authorization header: GitHub token is empty or invalid (contains space/newline/bullets or is a placeholder).");
+    }
   }
 
   // a. Fetch default branch of the repository
