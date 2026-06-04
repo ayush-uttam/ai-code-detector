@@ -115,7 +115,7 @@ export async function fetchFilesFromGithub(repoUrl: string, token?: string) {
           let deletions = 0;
           let changedFiles = 0;
 
-          if (index < 15) {
+          if (index < (token ? 15 : 5)) {
             try {
               const detailRes = await fetch(
                 `https://api.github.com/repos/${owner}/${repo}/commits/${cmt.sha}`,

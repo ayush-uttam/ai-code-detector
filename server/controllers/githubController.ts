@@ -14,6 +14,6 @@ export async function handleGithubFetchFiles(req: Request, res: Response): Promi
     res.json(result);
   } catch (error: any) {
     console.error("Fetch GitHub Error:", error);
-    res.status(550).json({ error: error.message || "An error occurred while fetching from GitHub API" });
+    res.status(500).json({ error: error.message || "An error occurred while fetching from GitHub API" });
   }
 }

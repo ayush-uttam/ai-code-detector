@@ -1,4 +1,5 @@
-import React, { ErrorInfo, ReactNode } from "react";
+import * as React from "react";
+import { ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children?: ReactNode;
@@ -25,6 +26,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   private handleReset = () => {
+    // @ts-ignore
     this.setState({ hasError: false, error: null });
   };
 
@@ -52,6 +54,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           </div>
           <div className="space-y-1.5">
             <h3 className="text-white font-bold text-sm leading-tight">
+              {/* @ts-ignore */}
               {this.props.fallbackTitle || "Application Module Crash"}
             </h3>
             <p className="text-zinc-400 text-xs leading-normal font-light">
@@ -71,6 +74,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
+    // @ts-ignore
     return this.props.children;
   }
 }

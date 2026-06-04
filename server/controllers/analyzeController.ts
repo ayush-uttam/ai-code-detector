@@ -176,6 +176,6 @@ ${numberedCode}
 
   } catch (error: any) {
     console.error("AI Analysis Error:", error);
-    res.status(550).json({ error: error.message || "An error occurred during AI analysis." });
+    res.status(500).json({ error: error.message || "An error occurred during AI analysis." });
   }
 }
