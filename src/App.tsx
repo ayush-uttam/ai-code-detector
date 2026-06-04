@@ -418,18 +418,28 @@ export default function App() {
           )}
         </main>
 
-        {/* 4. Professional footer with explicit credits */}
         <footer className="bg-zinc-955 border-t border-white/10 py-5 mt-auto">
-          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[10px] text-zinc-550 font-mono tracking-wide">
-            <span>AI Code Detector &bull; Powered by Google Gemini &bull; Secure Academic Cloud Suite</span>
-            <a 
-              href="https://github.com/ayush-uttam"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-400 hover:text-sky-455 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center transition-colors cursor-pointer"
-            >
-              Vibe coded by Ayush Uttam xD
-            </a>
+          <div className="max-w-7xl mx-auto px-4 flex items-center justify-center text-center">
+            <span className="font-display text-sm text-zinc-500">
+              Made by{" "}
+              <a 
+                href="https://github.com/ayush-uttam"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-300 hover:text-sky-400 transition-colors cursor-pointer"
+              >
+                Ayush
+              </a>{" "}
+              &amp;{" "}
+              <a 
+                href="https://github.com/AnujMishra301"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-300 hover:text-sky-400 transition-colors cursor-pointer"
+              >
+                Anuj
+              </a>
+            </span>
           </div>
         </footer>
       </div>
