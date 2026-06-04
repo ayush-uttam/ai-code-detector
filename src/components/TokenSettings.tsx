@@ -10,8 +10,10 @@ interface TokenSettingsProps {
   setGeminiModel: (val: string) => void;
   customGeminiKey: string;
   onSaveCustomGeminiKey: (key: string) => Promise<void>;
-  aiProvider: "gemini" | "openai";
-  setAiProvider: (val: "gemini" | "openai") => void;
+  aiProvider: "gemini" | "grok" | "openai";
+  setAiProvider: (val: "gemini" | "grok" | "openai") => void;
+  customGrokKey: string;
+  onSaveCustomGrokKey: (key: string) => Promise<void>;
   customOpenaiKey: string;
   onSaveCustomOpenaiKey: (key: string) => Promise<void>;
 }
@@ -25,6 +27,8 @@ export default function TokenSettings({
   onSaveCustomGeminiKey,
   aiProvider,
   setAiProvider,
+  customGrokKey,
+  onSaveCustomGrokKey,
   customOpenaiKey,
   onSaveCustomOpenaiKey,
 }: TokenSettingsProps) {
@@ -38,14 +42,18 @@ export default function TokenSettings({
   
   const [isGeminiModified, setIsGeminiModified] = useState(false);
   const [geminiInput, setGeminiInput] = useState("");
+  const [isGrokModified, setIsGrokModified] = useState(false);
+  const [grokInput, setGrokInput] = useState("");
   const [isOpenaiModified, setIsOpenaiModified] = useState(false);
   const [openaiInput, setOpenaiInput] = useState("");
 
   const [saved, setSaved] = useState(false);
   const [geminiSaved, setGeminiSaved] = useState(false);
+  const [grokSaved, setGrokSaved] = useState(false);
   const [openaiSaved, setOpenaiSaved] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [showGrokKey, setShowGrokKey] = useState(false);
+  const [showOpenai, setShowOpenai] = useState(false);
 
   useEffect(() => {
     if (customGeminiKey) {
@@ -56,6 +64,16 @@ export default function TokenSettings({
       setIsGeminiModified(true);
     }
   }, [customGeminiKey]);
+
+  useEffect(() => {
+    if (customGrokKey) {
+      setGrokInput("••••••••••••••••••••••••••••••••");
+      setIsGrokModified(false);
+    } else {
+      setGrokInput("");
+      setIsGrokModified(true);
+    }
+  }, [customGrokKey]);
 
   useEffect(() => {
     if (customOpenaiKey) {
@@ -84,6 +102,16 @@ export default function TokenSettings({
       setGeminiInput(val.replace(/•/g, ""));
     } else {
       setGeminiInput(val);
+    }
+  };
+
+  const handleGrokChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!isGrokModified) {
+      setIsGrokModified(true);
+      setGrokInput(val.replace(/•/g, ""));
+    } else {
+      setGrokInput(val);
     }
   };
 
@@ -124,6 +152,19 @@ export default function TokenSettings({
     }
   };
 
+  const handleSaveGrokKey = async () => {
+    if (!isGrokModified) return;
+    try {
+      await onSaveCustomGrokKey(grokInput);
+      setGrokSaved(true);
+      setTimeout(() => setGrokSaved(false), 2000);
+      setIsGrokModified(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save Grok API key.");
+    }
+  };
+
   const handleSaveOpenaiKey = async () => {
     if (!isOpenaiModified) return;
     try {
@@ -158,7 +199,9 @@ export default function TokenSettings({
           <div className="flex items-center gap-1.5">
             <Cpu className="w-3.5 h-3.5 text-zinc-550" />
             <span>
-              Provider: <strong className="text-zinc-200 uppercase">{aiProvider}</strong> &bull; 
+              Provider: <strong className="text-zinc-200 uppercase">
+                {aiProvider === "grok" ? "xAI Grok" : aiProvider === "openai" ? "OpenAI" : aiProvider}
+              </strong> &bull; 
               Model: <strong className="text-zinc-200">
                 {aiProvider === "gemini" 
                   ? (geminiModel === "gemini-3.5-flash" 
@@ -166,7 +209,9 @@ export default function TokenSettings({
                       : geminiModel === "gemini-3.1-flash-lite"
                         ? "Gemini 3.1 Flash Lite"
                         : "Gemini 3.1 Pro")
-                  : (geminiModel === "gpt-4o" ? "GPT-4o" : "GPT-4o mini")}
+                  : aiProvider === "grok"
+                    ? (geminiModel === "grok-2-1212" ? "Grok 2" : "Grok Beta")
+                    : (geminiModel === "gpt-4o" ? "GPT-4o" : "GPT-4o mini")}
               </strong>
             </span>
           </div>
@@ -176,7 +221,9 @@ export default function TokenSettings({
               API Key: {
                 aiProvider === "gemini"
                   ? (customGeminiKey ? <span className="text-emerald-400 font-semibold font-mono text-[10px]">Gemini Custom</span> : <span className="text-zinc-500 font-medium">Gemini Default</span>)
-                  : (customOpenaiKey ? <span className="text-emerald-400 font-semibold font-mono text-[10px]">OpenAI Custom</span> : <span className="text-zinc-500 font-medium">OpenAI Default</span>)
+                  : aiProvider === "grok"
+                    ? (customGrokKey ? <span className="text-emerald-400 font-semibold font-mono text-[10px]">Grok Custom</span> : <span className="text-zinc-500 font-medium">Grok Default</span>)
+                    : (customOpenaiKey ? <span className="text-emerald-400 font-semibold font-mono text-[10px]">OpenAI Custom</span> : <span className="text-zinc-500 font-medium">OpenAI Default</span>)
               }
             </span>
           </div>
@@ -190,7 +237,7 @@ export default function TokenSettings({
             <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
               Select AI Provider
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 id="provider-gemini-btn"
                 type="button"
@@ -198,17 +245,35 @@ export default function TokenSettings({
                   setAiProvider("gemini");
                   setGeminiModel("gemini-3.1-flash-lite");
                 }}
-                className={`py-2 px-3 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
                   aiProvider === "gemini"
                     ? "border-sky-550 bg-sky-505/10 text-sky-300"
-                    : "border-white/10 hover:bg-white/5 text-zinc-400"
+                    : "border-white/10 hover:bg-white/5 text-zinc-450"
                 }`}
               >
-                <span className="font-semibold text-[11px] flex items-center gap-1">
-                  Google Gemini {aiProvider === "gemini" && <Check className="w-3 h-3 text-sky-400" />}
+                <span className="font-semibold text-[10px] flex items-center gap-0.5 truncate">
+                  Gemini {aiProvider === "gemini" && <Check className="w-2.5 h-2.5 text-sky-400 shrink-0" />}
                 </span>
               </button>
               
+              <button
+                id="provider-grok-btn"
+                type="button"
+                onClick={() => {
+                  setAiProvider("grok");
+                  setGeminiModel("grok-beta");
+                }}
+                className={`py-1.5 px-2 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                  aiProvider === "grok"
+                    ? "border-sky-550 bg-sky-505/10 text-sky-300"
+                    : "border-white/10 hover:bg-white/5 text-zinc-450"
+                }`}
+              >
+                <span className="font-semibold text-[10px] flex items-center gap-0.5 truncate">
+                  Grok {aiProvider === "grok" && <Check className="w-2.5 h-2.5 text-sky-400 shrink-0" />}
+                </span>
+              </button>
+
               <button
                 id="provider-openai-btn"
                 type="button"
@@ -216,14 +281,14 @@ export default function TokenSettings({
                   setAiProvider("openai");
                   setGeminiModel("gpt-4o-mini");
                 }}
-                className={`py-2 px-3 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg border text-left flex items-center justify-between transition-colors cursor-pointer ${
                   aiProvider === "openai"
                     ? "border-sky-550 bg-sky-505/10 text-sky-300"
-                    : "border-white/10 hover:bg-white/5 text-zinc-400"
+                    : "border-white/10 hover:bg-white/5 text-zinc-450"
                 }`}
               >
-                <span className="font-semibold text-[11px] flex items-center gap-1">
-                  OpenAI {aiProvider === "openai" && <Check className="w-3 h-3 text-sky-400" />}
+                <span className="font-semibold text-[10px] flex items-center gap-0.5 truncate">
+                  OpenAI {aiProvider === "openai" && <Check className="w-2.5 h-2.5 text-sky-400 shrink-0" />}
                 </span>
               </button>
             </div>
@@ -232,11 +297,11 @@ export default function TokenSettings({
           {/* Model Selection */}
           <div>
             <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center gap-1">
-              Select {aiProvider === "gemini" ? "Gemini" : "OpenAI"} Model
+              Select {aiProvider === "gemini" ? "Gemini" : "Grok"} Model
               <span className="group relative">
                 <HelpCircle className="w-3 h-3 text-zinc-500 cursor-help" />
                 <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-zinc-950 text-zinc-200 border border-white/10 p-2 rounded text-[10px] leading-tight opacity-0 group-hover:opacity-100 transition-opacity whitespace-normal z-50 shadow-lg">
-                  Flash / Mini is faster and lower cost, while Pro / GPT-4o handles highly complex or heavily obfuscated code structures better.
+                  Flash / Beta is faster and lower cost, while Pro / Grok 2 handles highly complex or heavily obfuscated code structures better.
                 </span>
               </span>
             </label>
@@ -290,6 +355,40 @@ export default function TokenSettings({
                   <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">Deep reasoning. Best for complex algorithms.</span>
                 </button>
               </div>
+            ) : aiProvider === "grok" ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  id="model-grok-beta-btn"
+                  type="button"
+                  onClick={() => setGeminiModel("grok-beta")}
+                  className={`py-2 px-3 rounded-lg border text-left flex flex-col justify-between transition-colors cursor-pointer ${
+                    geminiModel === "grok-beta"
+                      ? "border-sky-550 bg-sky-505/10 text-sky-300"
+                      : "border-white/10 hover:bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  <span className="font-semibold text-[11px] flex items-center gap-1">
+                    Grok Beta {geminiModel === "grok-beta" && <Check className="w-3 h-3 text-sky-400" />}
+                  </span>
+                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">Fast response, ideal for active developer audits.</span>
+                </button>
+                
+                <button
+                  id="model-grok-pro-btn"
+                  type="button"
+                  onClick={() => setGeminiModel("grok-2-1212")}
+                  className={`py-2 px-3 rounded-lg border text-left flex flex-col justify-between transition-colors cursor-pointer ${
+                    geminiModel === "grok-2-1212"
+                      ? "border-sky-550 bg-sky-505/10 text-sky-300"
+                      : "border-white/10 hover:bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  <span className="font-semibold text-[11px] flex items-center gap-1">
+                    Grok 2 {geminiModel === "grok-2-1212" && <Check className="w-3 h-3 text-sky-400" />}
+                  </span>
+                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">High intelligence and reasoning, best for obfuscation scanning.</span>
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -305,7 +404,7 @@ export default function TokenSettings({
                   <span className="font-semibold text-[11px] flex items-center gap-1">
                     GPT-4o mini {geminiModel === "gpt-4o-mini" && <Check className="w-3 h-3 text-sky-400" />}
                   </span>
-                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">Highly efficient, fast response, low cost.</span>
+                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">Ultra fast, highly cost-efficient audits.</span>
                 </button>
                 
                 <button
@@ -321,7 +420,7 @@ export default function TokenSettings({
                   <span className="font-semibold text-[11px] flex items-center gap-1">
                     GPT-4o {geminiModel === "gpt-4o" && <Check className="w-3 h-3 text-sky-400" />}
                   </span>
-                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">High intelligence, great for coding and logical reasoning.</span>
+                  <span className="text-[10px] text-zinc-550 mt-0.5 font-normal">High intelligence, best for multi-file complexity scanning.</span>
                 </button>
               </div>
             )}
@@ -383,6 +482,56 @@ export default function TokenSettings({
             )}
           </div>
 
+          {/* Grok Key Input */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-300 mb-1 flex items-center gap-1">
+              Custom Grok API Key (Instructor Option)
+            </label>
+            <p className="text-[10px] text-zinc-500 mb-1.5">
+              Input your own personal API key from xAI (Grok). This saves to your secure backend profile so you bypass default platform limits.
+            </p>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  id="grok-key-input"
+                  type={showGrokKey ? "text" : "password"}
+                  placeholder="xai-..."
+                  value={showGrokKey ? (isGrokModified ? grokInput : customGrokKey) : grokInput}
+                  onChange={handleGrokChange}
+                  className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGrokKey(!showGrokKey)}
+                  className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                >
+                  {showGrokKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <button
+                id="save-grok-key-btn"
+                onClick={handleSaveGrokKey}
+                disabled={!isGrokModified}
+                className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-xs flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+              >
+                {grokSaved ? "Saved!" : "Save Key"}
+              </button>
+            </div>
+            {customGrokKey && (
+              <button
+                id="clear-grok-key-btn"
+                onClick={async () => {
+                  setGrokInput("");
+                  setIsGrokModified(true);
+                  await onSaveCustomGrokKey("");
+                }}
+                className="text-[10px] text-rose-400 hover:underline mt-1.5 font-medium cursor-pointer"
+              >
+                Reset to System Default Key
+              </button>
+            )}
+          </div>
+
           {/* OpenAI Key Input */}
           <div>
             <label className="block text-xs font-semibold text-zinc-300 mb-1 flex items-center gap-1">
@@ -395,18 +544,18 @@ export default function TokenSettings({
               <div className="relative flex-1">
                 <input
                   id="openai-key-input"
-                  type={showOpenaiKey ? "text" : "password"}
+                  type={showOpenai ? "text" : "password"}
                   placeholder="sk-proj-..."
-                  value={showOpenaiKey ? (isOpenaiModified ? openaiInput : customOpenaiKey) : openaiInput}
+                  value={showOpenai ? (isOpenaiModified ? openaiInput : customOpenaiKey) : openaiInput}
                   onChange={handleOpenaiChange}
                   className="w-full pl-3 pr-9 py-1.5 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-700"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                  onClick={() => setShowOpenai(!showOpenai)}
                   className="absolute right-2.5 top-2 text-zinc-500 hover:text-zinc-300 cursor-pointer"
                 >
-                  {showOpenaiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showOpenai ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
               <button

@@ -17,7 +17,8 @@ import {
   Code2,
   Gauge,
   Menu,
-  X
+  X,
+  CheckCircle
 } from "lucide-react";
 
 export default function App() {
@@ -30,12 +31,14 @@ export default function App() {
     logout,
     saveGeminiApiKey,
     saveOpenaiApiKey,
+    saveGrokApiKey,
     saveTutorialCompleted,
     updateStudent,
   } = useFirebase();
 
-  const handleSaveOnboardingKeys = async (keys: { geminiKey: string; githubToken: string; openaiKey: string }) => {
+  const handleSaveOnboardingKeys = async (keys: { geminiKey: string; githubToken: string; grokKey: string; openaiKey: string }) => {
     await saveGeminiApiKey(keys.geminiKey);
+    await saveGrokApiKey(keys.grokKey);
     await saveOpenaiApiKey(keys.openaiKey);
     setGithubToken(keys.githubToken);
     if (user?.uid) {
@@ -48,7 +51,7 @@ export default function App() {
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [githubToken, setGithubToken] = useState<string>("");
-  const [aiProvider, setAiProvider] = useState<"gemini" | "openai">("gemini");
+  const [aiProvider, setAiProvider] = useState<"gemini" | "grok" | "openai">("gemini");
   const [geminiModel, setGeminiModel] = useState<string>("gemini-3.1-flash-lite");
   const [view, setView] = useState<"students" | "report" | "code">("students");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,6 +59,7 @@ export default function App() {
   const [isAnalyzingSingleFile, setIsAnalyzingSingleFile] = useState(false);
   const [printTarget, setPrintTarget] = useState<{ type: "single" | "all"; studentId?: string } | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string>("");
+  const [finishedNotification, setFinishedNotification] = useState<{ name: string; rollNo: string; score: number } | null>(null);
 
   const handleSelectStudent = (id: string | null) => {
     setSelectedStudentId(id);
@@ -180,9 +184,11 @@ export default function App() {
   };
 
   // Perform Analysis for a Single Student Repo
-  const handleAnalyzeStudent = async (student: Student, forceRefetch = false) => {
+  const handleAnalyzeStudent = async (student: Student, forceRefetch = false, preventRedirect = false) => {
     setSelectedStudentId(student.id);
-    setView("report");
+    if (!preventRedirect) {
+      setView("report");
+    }
     try {
       let filesToUse = student.files || [];
       
@@ -261,6 +267,7 @@ export default function App() {
       });
 
       const geminiKey = mentor?.geminiApiKey || "";
+      const grokKey = mentor?.grokApiKey || "";
       const openaiKey = mentor?.openaiApiKey || "";
 
       const analyzeRes = await fetch("/api/analyze/code", {
@@ -268,6 +275,7 @@ export default function App() {
         headers: { 
           "Content-Type": "application/json",
           "x-gemini-api-key": geminiKey,
+          "x-grok-api-key": grokKey,
           "x-openai-api-key": openaiKey
         },
         body: JSON.stringify({
@@ -327,8 +335,10 @@ export default function App() {
           : geminiModel === "gemini-3.1-flash-lite"
             ? "Gemini 3.1 Flash Lite"
             : "Gemini 3.1 Pro";
+      } else if (aiProvider === "grok") {
+        modelUsedLabel = geminiModel === "grok-2-1212" ? "Grok 2" : "Grok Beta";
       } else {
-        modelUsedLabel = geminiModel === "gpt-4o-mini" ? "GPT-4o mini" : "GPT-4o";
+        modelUsedLabel = geminiModel === "gpt-4o" ? "GPT-4o" : "GPT-4o mini";
       }
 
       await updateStudent(student.id, {
@@ -339,6 +349,14 @@ export default function App() {
         files: updatedFiles,
         activeReport: aggregatedReport
       });
+
+      if (preventRedirect) {
+        setFinishedNotification({
+          name: student.name,
+          rollNo: student.rollNo,
+          score: reportData.probabilityScore
+        });
+      }
 
     } catch (err: any) {
       console.error("Analysis failed:", err);
@@ -369,6 +387,7 @@ export default function App() {
 
     try {
       const geminiKey = mentor?.geminiApiKey || "";
+      const grokKey = mentor?.grokApiKey || "";
       const openaiKey = mentor?.openaiApiKey || "";
 
       const analyzeRes = await fetch("/api/analyze/code", {
@@ -376,6 +395,7 @@ export default function App() {
         headers: { 
           "Content-Type": "application/json",
           "x-gemini-api-key": geminiKey,
+          "x-grok-api-key": grokKey,
           "x-openai-api-key": openaiKey
         },
         body: JSON.stringify({
@@ -412,8 +432,10 @@ export default function App() {
           : geminiModel === "gemini-3.1-flash-lite"
             ? "Gemini 3.1 Flash Lite"
             : "Gemini 3.1 Pro";
+      } else if (aiProvider === "grok") {
+        modelUsedLabel = geminiModel === "grok-2-1212" ? "Grok 2" : "Grok Beta";
       } else {
-        modelUsedLabel = geminiModel === "gpt-4o-mini" ? "GPT-4o mini" : "GPT-4o";
+        modelUsedLabel = geminiModel === "gpt-4o" ? "GPT-4o" : "GPT-4o mini";
       }
 
       await updateStudent(selectedStudent.id, {
@@ -451,6 +473,7 @@ export default function App() {
     setIsAnalyzingSingleFile(true);
     try {
       const geminiKey = mentor?.geminiApiKey || "";
+      const grokKey = mentor?.grokApiKey || "";
       const openaiKey = mentor?.openaiApiKey || "";
 
       const analyzeRes = await fetch("/api/analyze/code", {
@@ -458,6 +481,7 @@ export default function App() {
         headers: { 
           "Content-Type": "application/json",
           "x-gemini-api-key": geminiKey,
+          "x-grok-api-key": grokKey,
           "x-openai-api-key": openaiKey
         },
         body: JSON.stringify({
@@ -559,11 +583,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans relative overflow-hidden">
       {/* Mouse Halo */}
-      <div id="mouse-halo" className="opacity-0" />
+      <div id="mouse-halo" className="opacity-0 no-print" />
 
       {/* Decorative ambient background glows */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute -bottom-45 -right-45 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none no-print" />
+      <div className="absolute -bottom-45 -right-45 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] pointer-events-none no-print" />
 
       <div className="no-print flex-1 flex flex-col relative z-10">
         {/* 1. Header Area with Google Auth Identity Management */}
@@ -867,7 +891,7 @@ export default function App() {
       </div>
 
       {/* Slide-over settings drawer */}
-      <div className={`fixed inset-0 z-55 flex justify-end ${
+      <div className={`fixed inset-0 z-55 flex justify-end no-print ${
         isMenuOpen ? "pointer-events-auto" : "pointer-events-none"
       }`}>
         {/* Backdrop overlay */}
@@ -929,6 +953,8 @@ export default function App() {
             onSaveCustomGeminiKey={saveGeminiApiKey}
             aiProvider={aiProvider}
             setAiProvider={setAiProvider}
+            customGrokKey={mentor?.grokApiKey || ""}
+            onSaveCustomGrokKey={saveGrokApiKey}
             customOpenaiKey={mentor?.openaiApiKey || ""}
             onSaveCustomOpenaiKey={saveOpenaiApiKey}
           />
@@ -938,6 +964,35 @@ export default function App() {
       {printTarget && (
         <div id="print-report-root" className="print-only">
           <PrintReportLayout students={students} target={printTarget} />
+        </div>
+      )}
+
+      {/* Finished Assessment Toast Dialog */}
+      {finishedNotification && (
+        <div className="fixed bottom-6 right-6 z-55 max-w-sm w-full bg-zinc-950/95 border border-white/10 p-4 rounded-xl shadow-2xl backdrop-blur-md animate-slideIn no-print">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-450 shrink-0">
+                <CheckCircle className="w-4 h-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-white font-semibold text-xs leading-tight">Assessment Completed</h4>
+                <p className="text-[11px] text-zinc-450 mt-0.5 leading-snug">
+                  Analysis completed for <strong className="text-zinc-200">{finishedNotification.name}</strong> {finishedNotification.rollNo && `(Roll: ${finishedNotification.rollNo})`}.
+                </p>
+                <span className="inline-block text-[10px] text-sky-400 font-semibold mt-1 font-mono">
+                  Verdict Score: {finishedNotification.score}% AI
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setFinishedNotification(null)}
+              className="p-1 text-zinc-500 hover:text-white hover:bg-white/5 rounded-full transition-colors cursor-pointer shrink-0 focus:outline-none"
+              title="Close Notification"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -1104,8 +1159,8 @@ function PrintReportLayout({ students, target }: { students: Student[], target: 
             <div className="border border-zinc-300 rounded-lg p-4 mb-6 flex items-center gap-6 bg-zinc-50">
               <div className="w-24 h-24 rounded-full border-4 flex flex-col items-center justify-center shrink-0 bg-white"
                    style={{ borderColor: report.probabilityScore >= 70 ? "#ef4444" : report.probabilityScore >= 30 ? "#f59e0b" : "#10b981" }}>
-                <span className="text-2xl font-black text-zinc-900 leading-none">{report.probabilityScore}%</span>
-                <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider mt-1 text-center">AI Prob</span>
+                <span className="text-xl font-black text-zinc-900 leading-none">{report.probabilityScore}%</span>
+                <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider mt-0.5 text-center">AI Prob</span>
               </div>
               <div className="space-y-1.5 text-xs">
                 <div className="flex gap-4">

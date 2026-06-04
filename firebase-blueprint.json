@@ -21,6 +21,10 @@
           "type": "string",
           "description": "Optional custom OpenAI API key provided by this mentor."
         },
+        "grokApiKey": {
+          "type": "string",
+          "description": "Optional custom Grok API key provided by this mentor."
+        },
         "tutorialCompleted": {
           "type": "boolean",
           "description": "Flag representing whether the user has completed the onboarding tutorial."

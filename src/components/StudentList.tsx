@@ -25,7 +25,7 @@ interface StudentListProps {
   students: Student[];
   selectedStudentId: string | null;
   setSelectedStudentId: (id: string | null) => void;
-  onAnalyzeStudent: (student: Student, forceRefetch?: boolean) => void;
+  onAnalyzeStudent: (student: Student, forceRefetch?: boolean, preventRedirect?: boolean) => void;
   onAnalyzeAll: () => void;
   onPrintAll?: () => void;
 }
@@ -667,7 +667,8 @@ export default function StudentList({
                       id={`analyze-student-${student.id}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onAnalyzeStudent(student, true);
+                        const isReRun = student.status === "analyzed";
+                        onAnalyzeStudent(student, true, isReRun);
                       }}
                       disabled={student.status === "fetching" || student.status === "analyzing"}
                       className="py-1 px-1.5 text-[10px] font-semibold bg-zinc-800 text-zinc-300 rounded hover:bg-sky-500 hover:text-white disabled:opacity-50 transition-colors cursor-pointer"

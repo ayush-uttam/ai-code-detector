@@ -33,6 +33,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   saveGeminiApiKey: (key: string) => Promise<void>;
   saveOpenaiApiKey: (key: string) => Promise<void>;
+  saveGrokApiKey: (key: string) => Promise<void>;
   saveTutorialCompleted: (completed: boolean) => Promise<void>;
   addStudent: (name: string, rollNo: string, githubUrl: string) => Promise<void>;
   addStudentsBatch: (studentsList: Omit<Student, "id">[]) => Promise<void>;
@@ -66,6 +67,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
               name: currentUser.displayName || "Educator",
               geminiApiKey: "",
               openaiApiKey: "",
+              grokApiKey: "",
               tutorialCompleted: false,
               createdAt: serverTimestamp(),
             };
@@ -75,11 +77,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
             const data = mentorSnap.data();
             const resolvedGemini = currentUser.uid ? resolveKey(data?.geminiApiKey || "", currentUser.uid) : (data?.geminiApiKey || "");
             const resolvedOpenai = currentUser.uid ? resolveKey(data?.openaiApiKey || "", currentUser.uid) : (data?.openaiApiKey || "");
+            const resolvedGrok = currentUser.uid ? resolveKey(data?.grokApiKey || "", currentUser.uid) : (data?.grokApiKey || "");
             console.log("[CLIENT DIAG] getDoc - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
             const decrypted = data ? {
               ...data,
               geminiApiKey: resolvedGemini,
               openaiApiKey: resolvedOpenai,
+              grokApiKey: resolvedGrok,
             } : null;
             setMentor(decrypted);
           }
@@ -105,11 +109,13 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         const data = snap.data();
         const resolvedGemini = user.uid ? resolveKey(data?.geminiApiKey || "", user.uid) : (data?.geminiApiKey || "");
         const resolvedOpenai = user.uid ? resolveKey(data?.openaiApiKey || "", user.uid) : (data?.openaiApiKey || "");
+        const resolvedGrok = user.uid ? resolveKey(data?.grokApiKey || "", user.uid) : (data?.grokApiKey || "");
         console.log("[CLIENT DIAG] onSnapshot - rawGemini:", data?.geminiApiKey ? data.geminiApiKey.substring(0, 6) + "..." : "empty", "resolved:", resolvedGemini ? resolvedGemini.substring(0, 6) + "..." : "empty");
         const decrypted = data ? {
           ...data,
           geminiApiKey: resolvedGemini,
           openaiApiKey: resolvedOpenai,
+          grokApiKey: resolvedGrok,
         } : null;
         setMentor(decrypted);
       }
@@ -197,6 +203,21 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       await updateDoc(mentorRef, {
         openaiApiKey: secured,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `mentors/${user.uid}`);
+    }
+  };
+
+  const saveGrokApiKey = async (key: string) => {
+    if (!user) return;
+    const mentorRef = doc(db, "mentors", user.uid);
+    const secured = secureKey(key, user.uid);
+    console.log("[CLIENT DIAG] saveGrokApiKey - key to save:", key ? key.substring(0, 6) + "..." : "empty", "secured:", secured ? secured.substring(0, 6) + "..." : "empty");
+    try {
+      await updateDoc(mentorRef, {
+        grokApiKey: secured,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {
@@ -309,6 +330,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       logout,
       saveGeminiApiKey,
       saveOpenaiApiKey,
+      saveGrokApiKey,
       saveTutorialCompleted,
       addStudent,
       addStudentsBatch,

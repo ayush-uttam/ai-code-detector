@@ -269,10 +269,27 @@ app.post("/api/github/fetch-files", async (req: express.Request, res: express.Re
 app.post("/api/analyze/code", async (req: express.Request, res: express.Response) => {
   const { provider = "gemini", code, filename, files, rollNo, studentName, modelName } = req.body;
   const customApiKey = req.headers["x-gemini-api-key"] as string | undefined;
+  const customGrokApiKey = req.headers["x-grok-api-key"] as string | undefined;
   const customOpenaiApiKey = req.headers["x-openai-api-key"] as string | undefined;
 
+  // Resolve model name dynamically based on provider to prevent mismatches
+  let activeModel = modelName;
+  if (provider === "grok") {
+    if (!activeModel || !activeModel.startsWith("grok-")) {
+      activeModel = "grok-beta";
+    }
+  } else if (provider === "openai") {
+    if (!activeModel || !activeModel.startsWith("gpt-")) {
+      activeModel = "gpt-4o-mini";
+    }
+  } else {
+    if (!activeModel || activeModel.startsWith("grok-") || activeModel.startsWith("gpt-")) {
+      activeModel = "gemini-3.5-flash";
+    }
+  }
+
   console.log("[DIAGNOSTIC] customApiKey received:", customApiKey ? `${customApiKey.substring(0, 6)}... (len: ${customApiKey.length})` : "undefined/empty");
-  console.log("[DIAGNOSTIC] customOpenaiApiKey received:", customOpenaiApiKey ? `${customOpenaiApiKey.substring(0, 6)}... (len: ${customOpenaiApiKey.length})` : "undefined/empty");
+  console.log("[DIAGNOSTIC] customGrokApiKey received:", customGrokApiKey ? `${customGrokApiKey.substring(0, 6)}... (len: ${customGrokApiKey.length})` : "undefined/empty");
 
   const isMultiFile = Array.isArray(files) && files.length > 0;
   if (!code && !isMultiFile) {
@@ -401,11 +418,11 @@ ${numberedCode}
     }
 
     if (provider === "openai") {
-      const openAiKey = (customOpenaiApiKey && customOpenaiApiKey.trim() !== "") 
+      const openaiApiKey = (customOpenaiApiKey && customOpenaiApiKey.trim() !== "") 
         ? customOpenaiApiKey 
         : process.env.OPENAI_API_KEY;
 
-      if (!openAiKey) {
+      if (!openaiApiKey) {
         throw new Error("OpenAI API access key is not configured. Please set the OPENAI_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI.");
       }
 
@@ -465,10 +482,10 @@ ${numberedCode}
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAiKey}`
+          "Authorization": `Bearer ${openaiApiKey}`
         },
         body: JSON.stringify({
-          model: modelName || "gpt-4o-mini",
+          model: activeModel,
           response_format: { type: "json_object" },
           temperature: 0.1,
           max_tokens: 4096,
@@ -502,8 +519,110 @@ ${numberedCode}
       return;
     }
 
+    if (provider === "grok") {
+      const grokApiKey = (customGrokApiKey && customGrokApiKey.trim() !== "") 
+        ? customGrokApiKey 
+        : process.env.GROK_API_KEY;
+
+      if (!grokApiKey) {
+        throw new Error("Grok API access key is not configured. Please set the GROK_API_KEY variable in your platform environment OR input your personal key via the 'Analysis & Rate Limit Config' panel in the UI.");
+      }
+
+      const responseSchemaText = isMultiFile 
+        ? `\n\nYou MUST return the response strictly as a JSON object matching this schema:
+{
+  "probabilityScore": number,
+  "confidenceRating": "Low" | "Medium" | "High",
+  "verdictSummary": string,
+  "evidencePoints": [
+    { "type": string, "explanation": string, "severity": "High Alert" | "Medium Hint" | "Style Quirk" | "Human Indicator", "snippet": string, "filePath": string }
+  ],
+  "humanComparison": {
+    "aiCharacteristics": string,
+    "humanEquivalentStyle": string,
+    "styleQuirkNotes": string
+  },
+  "fileBreakdowns": [
+    {
+      "filePath": string,
+      "probabilityScore": number,
+      "confidenceRating": "Low" | "Medium" | "High",
+      "verdictSummary": string,
+      "evidencePoints": [
+        { "type": string, "explanation": string, "severity": "High Alert" | "Medium Hint" | "Style Quirk" | "Human Indicator", "snippet": string }
+      ],
+      "lineAnnotations": [
+        { "startLine": number, "endLine": number, "codeBlock": string, "isSuspicious": boolean, "commentary": string }
+      ],
+      "humanComparison": {
+        "aiCharacteristics": string,
+        "humanEquivalentStyle": string,
+        "styleQuirkNotes": string
+      }
+    }
+  ]
+}`
+        : `\n\nYou MUST return the response strictly as a JSON object matching this schema:
+{
+  "probabilityScore": number,
+  "confidenceRating": "Low" | "Medium" | "High",
+  "verdictSummary": string,
+  "evidencePoints": [
+    { "type": string, "explanation": string, "severity": "High Alert" | "Medium Hint" | "Style Quirk" | "Human Indicator", "snippet": string }
+  ],
+  "lineAnnotations": [
+    { "startLine": number, "endLine": number, "codeBlock": string, "isSuspicious": boolean, "commentary": string }
+  ],
+  "humanComparison": {
+    "aiCharacteristics": string,
+    "humanEquivalentStyle": string,
+    "styleQuirkNotes": string
+  }
+}`;
+
+      const grokResponse = await fetch("https://api.xai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${grokApiKey}`
+        },
+        body: JSON.stringify({
+          model: activeModel,
+          response_format: { type: "json_object" },
+          temperature: 0.1,
+          max_tokens: 4096,
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt + responseSchemaText
+            },
+            {
+              role: "user",
+              content: userMessage
+            }
+          ]
+        })
+      });
+
+      if (!grokResponse.ok) {
+        const errBody = await grokResponse.json().catch(() => ({}));
+        const msg = errBody.error?.message || `Grok API request failed with status ${grokResponse.status}`;
+        throw new Error(msg);
+      }
+
+      const grokData = await grokResponse.json() as any;
+      const jsonText = grokData.choices?.[0]?.message?.content;
+      if (!jsonText) {
+        throw new Error("No response content returned from Grok API.");
+      }
+
+      const parsedResponse = JSON.parse(jsonText.trim());
+      res.json(parsedResponse);
+      return;
+    }
+
     // Default to Gemini
-    const activeModelName = modelName || "gemini-3.5-flash";
+    const activeModelName = activeModel;
     const ai = getGeminiClient(customApiKey);
 
     const activeResponseSchema = isMultiFile ? {

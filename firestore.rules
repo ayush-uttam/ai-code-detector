@@ -38,6 +38,7 @@ service cloud.firestore {
              data.name is string && data.name.size() <= 256 &&
              (!('geminiApiKey' in data) || (data.geminiApiKey is string && data.geminiApiKey.size() <= 512)) &&
              (!('openaiApiKey' in data) || (data.openaiApiKey is string && data.openaiApiKey.size() <= 512)) &&
+             (!('grokApiKey' in data) || (data.grokApiKey is string && data.grokApiKey.size() <= 512)) &&
              (!('tutorialCompleted' in data) || data.tutorialCompleted is bool);
     }
 

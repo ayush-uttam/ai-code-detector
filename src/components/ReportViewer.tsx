@@ -96,7 +96,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
           {/* Big Score Radial/Circular Gauge */}
           <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
             {/* SVG Progress Circle */}
-            <svg className="w-full h-full transform -rotate-90">
+            <svg viewBox="0 0 112 112" className="w-full h-full transform -rotate-90">
               <circle
                 cx="56"
                 cy="56"
@@ -118,9 +118,9 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
                 fill="transparent"
               />
             </svg>
-            <div className="absolute flex flex-col items-center justify-center">
-              <span className="text-2xl font-black text-white tracking-tight leading-none">{report.probabilityScore}%</span>
-              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mt-1">AI Probability</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-black text-white tracking-tight leading-none">{report.probabilityScore}%</span>
+              <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider mt-0.5">AI Prob</span>
             </div>
           </div>
 

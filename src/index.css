@@ -7,10 +7,25 @@
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
+html {
+  font-size: 18px;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: #09090b;
   color: #e2e8f0;
+}
+
+/* Proportional scale overrides for arbitrary text sizes */
+.text-\[9px\] {
+  font-size: 10.5px !important;
+}
+.text-\[10px\] {
+  font-size: 11.5px !important;
+}
+.text-\[11px\] {
+  font-size: 12.5px !important;
 }
 
 input, button, select, textarea {
@@ -50,16 +65,34 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Printing styling utility */
 @media print {
-  body {
+  /* 1. Global Reset to White Canvas & Prevent Clipping */
+  html, body, #root, div.min-h-screen {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: none !important;
+    flex-direction: unset !important;
     background-color: white !important;
     background-image: none !important;
-    color: black !important;
+    color: #1f2937 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
   }
-  
-  .no-print, .no-print * {
+
+  /* 2. Hide all screen-only UI */
+  .no-print, 
+  .no-print * {
     display: none !important;
   }
 
+  /* 3. Page break and page layout constraints */
   .print-only {
     display: block !important;
   }
@@ -70,6 +103,8 @@ h1, h2, h3, h4, h5, h6 {
     border-bottom: 2px solid #e5e7eb;
     padding-bottom: 2rem;
     margin-bottom: 2rem;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   .print-page:last-child {
@@ -78,6 +113,89 @@ h1, h2, h3, h4, h5, h6 {
     border-bottom: none;
     padding-bottom: 0;
     margin-bottom: 0;
+  }
+
+  /* 4. Force high-fidelity rendering of colors and remove text shadows */
+  #print-report-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  /* Solid contrast typography for master print layouts */
+  #print-report-root * {
+    color: #1f2937 !important; /* solid charcoal text by default */
+    text-shadow: none !important;
+    box-shadow: none !important;
+    font-family: var(--font-sans) !important; /* Force Inter sans-serif on all headings/text */
+  }
+
+  /* Ensure monospace styling is preserved for code blocks, line numbers and shas */
+  #print-report-root pre,
+  #print-report-root pre *,
+  #print-report-root code,
+  #print-report-root code *,
+  #print-report-root .font-mono,
+  #print-report-root .font-mono * {
+    font-family: var(--font-mono) !important;
+  }
+
+  /* 5. Keep semantic color coding in prints */
+  /* Red/rose alerts */
+  #print-report-root .text-red-50,
+  #print-report-root .text-red-500,
+  #print-report-root .text-red-600,
+  #print-report-root .text-red-650,
+  #print-report-root .text-red-700,
+  #print-report-root .text-red-950,
+  #print-report-root .text-rose-500,
+  #print-report-root .text-rose-600,
+  #print-report-root .text-rose-700,
+  #print-report-root .text-rose-950 {
+    color: #b91c1c !important;
+  }
+  
+  /* Green/emerald proofs */
+  #print-report-root .text-emerald-500,
+  #print-report-root .text-emerald-600,
+  #print-report-root .text-emerald-700,
+  #print-report-root .text-emerald-950 {
+    color: #047857 !important;
+  }
+
+  /* Amber/yellow warnings */
+  #print-report-root .text-amber-500,
+  #print-report-root .text-amber-600,
+  #print-report-root .text-amber-700,
+  #print-report-root .text-amber-950 {
+    color: #b45309 !important;
+  }
+
+  /* Blue/sky style quirks */
+  #print-report-root .text-sky-500,
+  #print-report-root .text-sky-600,
+  #print-report-root .text-sky-700,
+  #print-report-root .text-sky-950 {
+    color: #0369a1 !important;
+  }
+
+  /* Preserve alert backgrounds with high contrast text */
+  #print-report-root .bg-red-50,
+  #print-report-root .bg-red-50\/70 {
+    background-color: #fef2f2 !important;
+    border-color: #fecaca !important;
+  }
+  #print-report-root .bg-emerald-50,
+  #print-report-root .bg-emerald-50\/70 {
+    background-color: #ecfdf5 !important;
+    border-color: #a7f3d0 !important;
+  }
+  #print-report-root .bg-zinc-50 {
+    background-color: #f9fafb !important;
+    border-color: #e5e7eb !important;
   }
 }
 

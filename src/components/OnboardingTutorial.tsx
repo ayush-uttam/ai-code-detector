@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 interface OnboardingTutorialProps {
-  onSaveKeys: (keys: { geminiKey: string; githubToken: string; openaiKey: string }) => Promise<void>;
+  onSaveKeys: (keys: { geminiKey: string; githubToken: string; grokKey: string; openaiKey: string }) => Promise<void>;
   onComplete: () => Promise<void>;
   onSignOut: () => Promise<void>;
 }
@@ -21,10 +21,12 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
   const [step, setStep] = useState(1);
   const [geminiKey, setGeminiKey] = useState("");
   const [githubToken, setGithubToken] = useState("");
+  const [grokKey, setGrokKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
   
   const [showGemini, setShowGemini] = useState(false);
   const [showGithub, setShowGithub] = useState(false);
+  const [showGrok, setShowGrok] = useState(false);
   const [showOpenai, setShowOpenai] = useState(false);
   
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +60,7 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
       await onSaveKeys({
         geminiKey: geminiKey.trim(),
         githubToken: githubToken.trim(),
+        grokKey: grokKey.trim(),
         openaiKey: openaiKey.trim()
       });
 
@@ -224,19 +227,52 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
 
           {/* STEP 3: OPTIONAL API KEYS */}
           {step === 3 && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="space-y-4 animate-fadeIn max-h-[400px] overflow-y-auto pr-1">
               <div className="space-y-1">
                 <h2 className="text-white font-display font-bold text-base flex items-center gap-1.5">
                   <Cpu className="w-5 h-5 text-sky-400" />
                   <span>Optional Configurations</span>
                 </h2>
                 <p className="text-zinc-400 text-xs leading-relaxed">
-                  You can also integrate OpenAI models like GPT-4o to serve as audit models if you have an active OpenAI API Key.
+                  You can also integrate xAI Grok and OpenAI models to serve as audit models if you have active credentials.
                 </p>
               </div>
 
               <div className="space-y-3.5 pt-2">
+                {/* Grok Key */}
                 <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                    <span>Grok API Key (Optional)</span>
+                    <a 
+                      href="https://console.x.ai/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-[10px] text-sky-400 hover:underline"
+                    >
+                      Get Grok Key
+                    </a>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showGrok ? "text" : "password"}
+                      placeholder="xai-..."
+                      value={grokKey}
+                      onChange={(e) => setGrokKey(e.target.value)}
+                      className="w-full pl-3 pr-9 py-2 bg-zinc-950 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder:text-zinc-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGrok(!showGrok)}
+                      className="absolute right-3 top-2.5 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                    >
+                      {showGrok ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-500">Provide this key if you want to perform tests using Grok 2 or Grok Beta.</p>
+                </div>
+
+                {/* OpenAI Key */}
+                <div className="space-y-1.5 pt-1">
                   <label className="block text-xs font-semibold text-zinc-300 flex items-center justify-between">
                     <span>OpenAI API Key (Optional)</span>
                     <a 
@@ -288,7 +324,7 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
                   <span className="p-1 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded shrink-0 font-bold font-mono text-[9px] w-5 h-5 flex items-center justify-center">1</span>
                   <div>
                     <h3 className="font-bold text-zinc-200">Analysis & Rate Limit Config</h3>
-                    <p className="text-[10px] text-zinc-500">Top-left corner. Expand this to toggle providers (Gemini vs OpenAI) and update your API tokens.</p>
+                    <p className="text-[10px] text-zinc-500">Top-left corner. Expand this to toggle providers (Gemini vs Grok vs OpenAI) and update your API tokens.</p>
                   </div>
                 </div>
 
