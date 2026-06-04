@@ -13,21 +13,29 @@ import {
   MousePointerClick,
   GitCommit,
   History,
-  ExternalLink
+  ExternalLink,
+  CheckCircle2
 } from "lucide-react";
 
 interface CodeInspectorProps {
   student: Student;
   onCodeAnalyze: (filename: string, content: string) => void;
   isAnalyzing: boolean;
+  selectedFilePath: string;
+  setSelectedFilePath: (path: string) => void;
+  onSingleFileAnalyze?: (filePath: string) => Promise<void>;
+  isAnalyzingSingleFile?: boolean;
 }
 
 export default function CodeInspector({
   student,
   onCodeAnalyze,
   isAnalyzing,
+  selectedFilePath,
+  setSelectedFilePath,
+  onSingleFileAnalyze,
+  isAnalyzingSingleFile = false,
 }: CodeInspectorProps) {
-  const [selectedFilePath, setSelectedFilePath] = useState<string>("");
   const [selectedAnnotation, setSelectedAnnotation] = useState<LineAnnotation | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"clues" | "commits">("clues");
   
@@ -46,7 +54,9 @@ export default function CodeInspector({
   // Reset selected file when student changes
   useEffect(() => {
     if (files.length > 0) {
-      setSelectedFilePath(files[0].path);
+      if (!selectedFilePath) {
+        setSelectedFilePath(files[0].path);
+      }
       setIsPastingCode(false);
     } else {
       setSelectedFilePath("");
@@ -57,7 +67,7 @@ export default function CodeInspector({
 
   const activeFile = files.find((f) => f.path === selectedFilePath);
   const codeText = activeFile ? activeFile.content : "";
-  const annotations = student.activeReport?.lineAnnotations || [];
+  const annotations = activeFile?.report?.lineAnnotations || [];
 
   // Split lines
   const lines = codeText ? codeText.split("\n") : [];
@@ -349,6 +359,47 @@ export default function CodeInspector({
                     <div className="border border-dashed border-sky-500/25 bg-sky-950/10 p-4 rounded-lg text-center text-xs text-sky-400 font-normal space-y-2">
                       <Lightbulb className="w-5 h-5 text-sky-400 mx-auto" />
                       <p>Click highlighted code regions in the editor to view inline Gemini analysis explanations.</p>
+                    </div>
+                  ) : (activeFile && !activeFile.report) ? (
+                    /* Active file has no report (skipped or needs single file analysis) */
+                    <div className="bg-zinc-950 border border-white/10 p-4 rounded-lg shadow-md text-center space-y-4">
+                      <HelpCircle className="w-8 h-8 text-sky-400 mx-auto" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-white text-xs">No analysis report for this file.</p>
+                        <p className="text-[10px] text-zinc-500 leading-normal">
+                          This file was not included in the initial repository style audit (possibly due to size or limit rules).
+                        </p>
+                      </div>
+                      
+                      {onSingleFileAnalyze && (
+                        <button
+                          id="audit-single-file-btn"
+                          onClick={() => activeFile && onSingleFileAnalyze(activeFile.path)}
+                          disabled={isAnalyzingSingleFile}
+                          className="w-full py-2 px-3 bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          {isAnalyzingSingleFile ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Auditing File Style...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-sky-300" />
+                              <span>Audit this File Now</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ) : activeFile?.report ? (
+                    /* Report exists, but has no annotations */
+                    <div className="border border-dashed border-zinc-700 bg-zinc-950/20 p-4 rounded-lg text-center text-xs text-zinc-400 space-y-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto" />
+                      <p className="font-semibold text-zinc-300">File analyzed successfully</p>
+                      <p className="text-[10px] text-zinc-500 leading-normal">
+                        No suspicious AI code patterns or human quirks were marked on specific lines. The file's style is clean.
+                      </p>
                     </div>
                   ) : (
                     /* No analysis done yet */

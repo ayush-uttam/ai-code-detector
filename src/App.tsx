@@ -50,7 +50,9 @@ export default function App() {
   const [geminiModel, setGeminiModel] = useState<string>("gemini-3.1-flash-lite");
   const [activeTab, setActiveTab] = useState<"report" | "code">("report");
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
+  const [isAnalyzingSingleFile, setIsAnalyzingSingleFile] = useState(false);
   const [printTarget, setPrintTarget] = useState<{ type: "single" | "all"; studentId?: string } | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string>("");
 
   useEffect(() => {
     if (printTarget) {
@@ -84,6 +86,15 @@ export default function App() {
   }, [students, selectedStudentId]);
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId) || null;
+
+  // Set default selected file path when selected student changes
+  useEffect(() => {
+    if (selectedStudent && selectedStudent.files && selectedStudent.files.length > 0) {
+      setSelectedFilePath(selectedStudent.files[0].path);
+    } else {
+      setSelectedFilePath("");
+    }
+  }, [selectedStudentId, selectedStudent?.files?.length]);
 
   // Helper inside App to search relevant files for analysis
   const findPrimeFile = (files: CodeFile[]): CodeFile | null => {
@@ -151,16 +162,42 @@ export default function App() {
         });
       }
 
-      // Step B: Pick primary code file candidate
-      const primeFile = findPrimeFile(filesToUse);
-      if (!primeFile) {
-        throw new Error("No code files parsed matching standard programming languages (JavaScript, Python, Java etc.)");
+      // Step B: Pick files to analyze and enforce context window limit (250k tokens ~ 200,000 characters)
+      const eligibleForAnalysis = filesToUse.filter(f => {
+        if (!f.content || f.content.trim().length === 0) return false;
+        // Avoid tiny files with less than 30 characters
+        return f.content.trim().length > 30;
+      });
+
+      if (eligibleForAnalysis.length === 0) {
+        throw new Error("No code files parsed containing content to analyze.");
       }
 
-      // Step C: Trigger Analysis
+      let currentTotalChars = 0;
+      const maxTotalChars = 200000; // Safe threshold for 250k context token limit
+      const filesToAnalyze: Array<{ path: string, content: string }> = [];
+
+      for (const file of eligibleForAnalysis) {
+        const fileLen = file.content.length;
+        if (currentTotalChars + fileLen <= maxTotalChars) {
+          filesToAnalyze.push({
+            path: file.path,
+            content: file.content
+          });
+          currentTotalChars += fileLen;
+        } else {
+          console.log(`Skipping file "${file.path}" (size: ${fileLen} chars) to respect the 250k token context window safety margin.`);
+        }
+      }
+
+      if (filesToAnalyze.length === 0) {
+        throw new Error("All code files exceeded the context size constraints.");
+      }
+
+      // Step C: Trigger Single Batch Analysis
       await updateStudent(student.id, { 
         status: "analyzing",
-        errorMsg: null
+        errorMsg: `Auditing ${filesToAnalyze.length} repository code files...`
       });
 
       const geminiKey = mentor?.geminiApiKey || "";
@@ -175,8 +212,7 @@ export default function App() {
         },
         body: JSON.stringify({
           provider: aiProvider,
-          code: primeFile.content,
-          filename: primeFile.path,
+          files: filesToAnalyze,
           studentName: student.name,
           rollNo: student.rollNo,
           modelName: geminiModel,
@@ -185,11 +221,45 @@ export default function App() {
 
       if (!analyzeRes.ok) {
         const errBody = await analyzeRes.json().catch(() => ({}));
-        throw new Error(errBody.error || `Analysis failed: ${analyzeRes.statusText}`);
+        throw new Error(errBody.error || `Batch analysis failed: ${analyzeRes.statusText}`);
       }
 
       const reportData = await analyzeRes.json();
-      
+
+      // Step D: Map report breakdowns back to individual files
+      const updatedFiles = filesToUse.map(file => {
+        const breakdown = reportData.fileBreakdowns?.find((b: any) => b.filePath === file.path);
+        if (breakdown) {
+          return {
+            ...file,
+            report: {
+              probabilityScore: breakdown.probabilityScore,
+              confidenceRating: breakdown.confidenceRating,
+              verdictSummary: breakdown.verdictSummary,
+              evidencePoints: breakdown.evidencePoints,
+              lineAnnotations: breakdown.lineAnnotations,
+              humanComparison: breakdown.humanComparison,
+              analyzedAt: new Date().toISOString()
+            }
+          };
+        }
+        return file;
+      });
+
+      // Find highest risk file for display and default focus
+      const analyzedFiles = updatedFiles.filter(f => f.report);
+      const highestRiskFile = [...analyzedFiles].sort((a, b) => (b.report?.probabilityScore || 0) - (a.report?.probabilityScore || 0))[0];
+
+      const aggregatedReport = {
+        probabilityScore: reportData.probabilityScore,
+        confidenceRating: reportData.confidenceRating,
+        verdictSummary: reportData.verdictSummary,
+        evidencePoints: reportData.evidencePoints,
+        lineAnnotations: reportData.fileBreakdowns?.flatMap((b: any) => b.lineAnnotations || []) || [],
+        humanComparison: reportData.humanComparison,
+        analyzedAt: new Date().toISOString()
+      };
+
       let modelUsedLabel = "Gemini 3.5 Flash";
       if (aiProvider === "gemini") {
         modelUsedLabel = geminiModel === "gemini-3.5-flash" 
@@ -203,13 +273,11 @@ export default function App() {
 
       await updateStudent(student.id, {
         status: "analyzed",
-        analyzedFilename: primeFile.path,
+        analyzedFilename: highestRiskFile?.path || "multiple files",
         modelUsed: modelUsedLabel,
         errorMsg: null,
-        activeReport: {
-          ...reportData,
-          analyzedAt: new Date().toISOString()
-        }
+        files: updatedFiles,
+        activeReport: aggregatedReport
       });
 
     } catch (err: any) {
@@ -270,7 +338,11 @@ export default function App() {
       // Cache this code content into sandbox mock file
       const sandboxMockFile: CodeFile = {
         path: filename,
-        content: content
+        content: content,
+        report: {
+          ...reportData,
+          analyzedAt: new Date().toISOString()
+        }
       };
 
       let modelUsedLabel = "Gemini 3.5 Flash";
@@ -307,6 +379,94 @@ export default function App() {
       });
     } finally {
       setIsAnalyzingSandbox(false);
+    }
+  };
+
+  // Run Audit on a single student file on-demand
+  const handleSingleFileAnalyze = async (filePath: string) => {
+    if (!selectedStudent) return;
+    const fileToAnalyze = selectedStudent.files?.find(f => f.path === filePath);
+    if (!fileToAnalyze) return;
+
+    setIsAnalyzingSingleFile(true);
+    try {
+      const geminiKey = mentor?.geminiApiKey || "";
+      const openaiKey = mentor?.openaiApiKey || "";
+
+      const analyzeRes = await fetch("/api/analyze/code", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "x-gemini-api-key": geminiKey,
+          "x-openai-api-key": openaiKey
+        },
+        body: JSON.stringify({
+          provider: aiProvider,
+          code: fileToAnalyze.content,
+          filename: fileToAnalyze.path,
+          studentName: selectedStudent.name,
+          rollNo: selectedStudent.rollNo,
+          modelName: geminiModel,
+        }),
+      });
+
+      if (!analyzeRes.ok) {
+        const errBody = await analyzeRes.json().catch(() => ({}));
+        throw new Error(errBody.error || `Analysis failed: ${analyzeRes.statusText}`);
+      }
+
+      const reportData = await analyzeRes.json();
+      
+      // Update this file's report
+      const updatedFiles = (selectedStudent.files || []).map(file => {
+        if (file.path === filePath) {
+          return {
+            ...file,
+            report: {
+              probabilityScore: reportData.probabilityScore,
+              confidenceRating: reportData.confidenceRating,
+              verdictSummary: reportData.verdictSummary,
+              evidencePoints: reportData.evidencePoints,
+              lineAnnotations: reportData.lineAnnotations,
+              humanComparison: reportData.humanComparison,
+              analyzedAt: new Date().toISOString()
+            }
+          };
+        }
+        return file;
+      });
+
+      // Prepare newly mapped evidence points with filePath
+      const newEvidencePoints = (reportData.evidencePoints || []).map((pt: any) => ({
+        ...pt,
+        filePath: filePath
+      }));
+
+      // Rebuild overall activeReport to merge evidence and annotations
+      let updatedActiveReport = selectedStudent.activeReport;
+      if (updatedActiveReport) {
+        const filteredEvidence = (updatedActiveReport.evidencePoints || []).filter(
+          (pt: any) => pt.filePath !== filePath
+        );
+        const allAnnotations = updatedFiles.flatMap((f) => f.report?.lineAnnotations || []);
+        
+        updatedActiveReport = {
+          ...updatedActiveReport,
+          evidencePoints: [...filteredEvidence, ...newEvidencePoints],
+          lineAnnotations: allAnnotations,
+        };
+      }
+
+      await updateStudent(selectedStudent.id, {
+        files: updatedFiles,
+        activeReport: updatedActiveReport,
+      });
+
+    } catch (err: any) {
+      console.error("Single-file analysis failure:", err);
+      alert(err.message || "Single file audit check encountered errors.");
+    } finally {
+      setIsAnalyzingSingleFile(false);
     }
   };
 
@@ -475,6 +635,10 @@ export default function App() {
                       student={selectedStudent}
                       report={selectedStudent.activeReport}
                       onPrint={() => setPrintTarget({ type: "single", studentId: selectedStudent.id })}
+                      onViewFileInInspector={(filePath) => {
+                        setSelectedFilePath(filePath);
+                        setActiveTab("code");
+                      }}
                     />
                   ) : (
                     /* Setup prompt frame if student is not analyzed yet */
@@ -494,7 +658,7 @@ export default function App() {
                         <div className="max-w-lg p-3 bg-rose-950/40 text-rose-300 border border-rose-555/35 rounded-lg text-xs font-medium text-left flex items-start gap-2">
                           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-455" />
                           <div>
-                            <span className="font-bold">Prior Attempt Failed: </span>
+                            <span className="font-bold">Status: </span>
                             {selectedStudent.errorMsg}
                           </div>
                         </div>
@@ -538,6 +702,10 @@ export default function App() {
                     student={selectedStudent}
                     onCodeAnalyze={handleSandboxCodeAnalyze}
                     isAnalyzing={isAnalyzingSandbox}
+                    selectedFilePath={selectedFilePath}
+                    setSelectedFilePath={setSelectedFilePath}
+                    onSingleFileAnalyze={handleSingleFileAnalyze}
+                    isAnalyzingSingleFile={isAnalyzingSingleFile}
                   />
                 )}
               </div>
@@ -616,9 +784,8 @@ function PrintReportLayout({ students, target }: { students: Student[], target: 
   const mediumRisk = analyzed.filter(s => s.activeReport && s.activeReport.probabilityScore >= 30 && s.activeReport.probabilityScore < 70).length;
   const lowRisk = analyzed.filter(s => s.activeReport && s.activeReport.probabilityScore < 30).length;
 
-  const getAnnotationForLineInFile = (lineNum: number, filePath: string, student: Student): LineAnnotation | undefined => {
-    if (filePath !== student.analyzedFilename) return undefined;
-    const annotations = student.activeReport?.lineAnnotations || [];
+  const getAnnotationForLineInFile = (lineNum: number, file: CodeFile): LineAnnotation | undefined => {
+    const annotations = file.report?.lineAnnotations || [];
     return annotations.find(
       (ann) => lineNum >= ann.startLine && lineNum <= ann.endLine
     );
@@ -884,7 +1051,7 @@ function PrintReportLayout({ students, target }: { students: Student[], target: 
                           ) : (
                             lines.map((line, idx) => {
                               const lineNum = idx + 1;
-                              const ann = getAnnotationForLineInFile(lineNum, file.path, student);
+                              const ann = getAnnotationForLineInFile(lineNum, file);
                               const isLastLineOfAnnotation = ann && lineNum === ann.endLine;
 
                               let bgClass = "";

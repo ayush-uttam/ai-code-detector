@@ -23,9 +23,10 @@ interface ReportViewerProps {
   student: Student;
   report: Report;
   onPrint?: () => void;
+  onViewFileInInspector?: (filePath: string) => void;
 }
 
-export default function ReportViewer({ student, report, onPrint }: ReportViewerProps) {
+export default function ReportViewer({ student, report, onPrint, onViewFileInInspector }: ReportViewerProps) {
   const getScoreColor = (score: number) => {
     if (score >= 70) return "text-rose-600 bg-rose-50 border-rose-200 fill-rose-600";
     if (score >= 30) return "text-amber-600 bg-amber-50 border-amber-200 fill-amber-600";
@@ -159,6 +160,44 @@ export default function ReportViewer({ student, report, onPrint }: ReportViewerP
           </div>
         </div>
       </div>
+
+      {/* File-by-File Audit Breakdown */}
+      {student.files && student.files.some(f => f.report) && (
+        <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 sm:p-5 shadow-lg space-y-3.5 animate-fadeIn">
+          <div className="flex items-center gap-2 pb-2.5 border-b border-white/10">
+            <Code className="w-4 h-4 text-sky-400" />
+            <h3 className="font-display font-semibold text-white text-sm">File-by-File AI Risk Breakdown</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {student.files.filter(f => f.report).map((file) => {
+              const fileScore = file.report?.probabilityScore || 0;
+              return (
+                <div 
+                  key={file.path} 
+                  onClick={() => onViewFileInInspector && onViewFileInInspector(file.path)}
+                  className="bg-zinc-950/60 border border-white/5 rounded-lg p-3 flex items-center justify-between gap-3 hover:bg-zinc-950 hover:border-sky-500/30 transition-all cursor-pointer group"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-white truncate group-hover:text-sky-400 transition-colors" title={file.path}>
+                      {file.path.split('/').pop()}
+                    </span>
+                    <span className="block text-[9px] text-zinc-500 font-mono truncate">
+                      {file.path}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded border shrink-0 ${
+                    fileScore >= 70 ? "text-rose-400 bg-rose-500/10 border-rose-500/20" :
+                    fileScore >= 30 ? "text-amber-400 bg-amber-500/10 border-amber-500/20" :
+                    "text-emerald-450 bg-emerald-500/10 border-emerald-500/20"
+                  }`}>
+                    {fileScore}% AI
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 2. Structured Findings & Clues */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

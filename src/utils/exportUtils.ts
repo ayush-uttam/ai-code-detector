@@ -49,6 +49,18 @@ export function exportStudentToXLSX(student: Student) {
   const wsCommits = XLSX.utils.json_to_sheet(commitsData.length > 0 ? commitsData : [{ Message: "No commit history found." }]);
   XLSX.utils.book_append_sheet(wb, wsCommits, "Commit History");
 
+  // Sheet 4: File Audit Breakdowns
+  const filesBreakdownData = student.files?.filter(f => f.report).map((f, idx) => ({
+    "No.": idx + 1,
+    "File Path": f.path,
+    "File Size (Bytes)": f.size || 0,
+    "AI Probability": f.report ? `${f.report.probabilityScore}%` : "N/A",
+    "Confidence": f.report ? f.report.confidenceRating : "N/A",
+    "Verdict Summary": f.report ? f.report.verdictSummary : "N/A"
+  })) || [];
+  const wsFilesBreakdown = XLSX.utils.json_to_sheet(filesBreakdownData.length > 0 ? filesBreakdownData : [{ Message: "No file breakdowns available." }]);
+  XLSX.utils.book_append_sheet(wb, wsFilesBreakdown, "File Breakdowns");
+
   // Save the Excel File
   const fileName = `${student.name.replace(/\s+/g, "_")}_audit_report.xlsx`;
   XLSX.writeFile(wb, fileName);

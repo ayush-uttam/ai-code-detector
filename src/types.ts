@@ -33,6 +33,7 @@ export interface CodeFile {
   path: string;
   size?: number;
   content: string;
+  report?: Report;
 }
 
 export interface CommitInfo {
