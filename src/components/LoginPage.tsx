@@ -31,10 +31,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       {/* Main card */}
       <div 
         id="login-card" 
-        className="max-w-md w-full bg-zinc-900/80 border border-white/10 rounded-2xl p-8 shadow-2xl relative z-10 backdrop-blur-md flex flex-col items-center text-center animate-fadeIn"
+        className="max-w-md w-full apple-glass rounded-2xl p-8 relative z-10 flex flex-col items-center text-center animate-fadeIn"
       >
         {/* App Logo */}
-        <div className="p-4 bg-sky-505/10 text-sky-400 rounded-full border border-sky-500/20 mb-6 flex items-center justify-center shadow-inner">
+        <div className="p-4 bg-sky-500/10 text-sky-400 rounded-full border border-sky-500/20 mb-6 flex items-center justify-center shadow-inner">
           <ShieldCheck className="w-10 h-10" />
         </div>
 
@@ -49,7 +49,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         </div>
 
         {/* Feature Highlights Grid */}
-        <div id="login-features" className="w-full text-left bg-zinc-950/40 border border-white/5 rounded-xl p-4 mb-8 space-y-3.5">
+        <div id="login-features" className="w-full text-left bg-black/30 border border-white/5 rounded-xl p-4 mb-8 space-y-3.5">
           <div className="flex items-start gap-2.5">
             <span className="p-1.5 bg-sky-500/15 text-sky-400 rounded-md mt-0.5">
               <Layers className="w-3.5 h-3.5" />
@@ -93,7 +93,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           id="google-signin-btn"
           onClick={handleLoginClick}
           disabled={loading}
-          className="w-full py-3 px-5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-sky-500/15 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-zinc-805 disabled:text-zinc-600 disabled:cursor-not-allowed"
+          className="w-full py-3 px-5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-sky-500/15 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-650 disabled:cursor-not-allowed"
         >
           {loading ? (
             <span className="inline-block animate-spin border-2 border-white border-t-transparent w-4 h-4 rounded-full" />
@@ -104,7 +104,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         </button>
 
         {/* Subdued Academic Tagline */}
-        <span className="text-[9px] text-zinc-650 mt-6 font-mono tracking-wider uppercase">
+        <span className="text-[9px] text-zinc-600 mt-6 font-mono tracking-wider uppercase">
           Google Cloud Secure &bull; Academic Suite v2
         </span>
       </div>

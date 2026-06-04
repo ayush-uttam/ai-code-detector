@@ -95,7 +95,7 @@ export default function CodeInspector({
   };
 
   return (
-    <div id="code-inspector-container" className="bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-lg flex flex-col h-full min-h-[500px]">
+    <div id="code-inspector-container" className="apple-glass rounded-xl overflow-hidden flex flex-col h-full min-h-[500px]">
       
       {/* 1. Header with workspace status */}
       <div className="p-4 border-b border-white/10 bg-zinc-950/40 flex flex-wrap items-center justify-between gap-3">
@@ -284,7 +284,7 @@ export default function CodeInspector({
 
         {/* Selected Annotation Detail Slide-over Panel (Right Sidebar) */}
         {!isPastingCode && (
-          <div className="w-full lg:w-72 bg-zinc-900 border-t lg:border-t-0 lg:border-l border-white/10 p-4 space-y-4 shrink-0 flex flex-col justify-between overflow-y-auto">
+          <div className="w-full lg:w-72 bg-zinc-900/30 border-t lg:border-t-0 lg:border-l border-white/10 p-4 space-y-4 shrink-0 flex flex-col justify-between overflow-y-auto backdrop-blur-md">
             <div className="space-y-4">
               {/* Tab Selector */}
               <div className="flex border-b border-white/10">

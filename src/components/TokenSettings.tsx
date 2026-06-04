@@ -138,7 +138,7 @@ export default function TokenSettings({
   };
 
   return (
-    <div id="settings-group" className="bg-zinc-900 border border-white/10 rounded-xl p-4 shadow-md">
+    <div id="settings-group" className="apple-glass rounded-xl p-4">
       <div className="flex items-center justify-between pb-3 border-b border-white/10">
         <div className="flex items-center gap-2">
           <Settings className="w-5 h-5 text-sky-400" />

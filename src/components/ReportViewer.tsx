@@ -58,7 +58,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
     <div id="report-viewer" className="space-y-5 animate-fadeIn">
       
       {/* 1. Header with Stats & Verdict Banner */}
-      <div className="bg-zinc-900 border border-white/10 rounded-xl overflow-hidden shadow-lg">
+      <div className="apple-glass rounded-xl overflow-hidden">
         <div className="p-4 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-950/40">
           <div>
             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Analysis Result</span>
@@ -152,7 +152,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
                 </span>
               )}
               {student.modelUsed && (
-                <span className="text-[10px] font-semibold text-sky-305 bg-sky-955/20 border border-sky-905/35 py-1 px-2.5 rounded inline-flex items-center gap-1 font-mono">
+                <span className="text-[10px] font-semibold text-sky-300 bg-sky-950/20 border border-sky-900/30 py-1 px-2.5 rounded inline-flex items-center gap-1 font-mono">
                   <span>Model: {student.modelUsed}</span>
                 </span>
               )}
@@ -163,7 +163,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
 
       {/* File-by-File Audit Breakdown */}
       {student.files && student.files.some(f => f.report) && (
-        <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 sm:p-5 shadow-lg space-y-3.5 animate-fadeIn">
+        <div className="apple-glass rounded-xl p-4 sm:p-5 space-y-3.5 animate-fadeIn">
           <div className="flex items-center gap-2 pb-2.5 border-b border-white/10">
             <Code className="w-4 h-4 text-sky-400" />
             <h3 className="font-display font-semibold text-white text-sm">File-by-File AI Risk Breakdown</h3>
@@ -203,7 +203,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         
         {/* Evidence Points */}
-        <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 shadow-lg space-y-3.5">
+        <div className="apple-glass rounded-xl p-4 space-y-3.5">
           <div className="flex items-center gap-2 pb-2.5 border-b border-white/10">
             <Flag className="w-4 h-4 text-sky-450" />
             <h3 className="font-display font-semibold text-white text-sm">Key Stylistic Indicators ({report.evidencePoints.length})</h3>
@@ -230,7 +230,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
         </div>
 
         {/* AI Character comparison */}
-        <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 shadow-lg space-y-3.5">
+        <div className="apple-glass rounded-xl p-4 space-y-3.5">
           <div className="flex items-center gap-2 pb-2.5 border-b border-white/10">
             <Sliders className="w-4 h-4 text-sky-450" />
             <h3 className="font-display font-semibold text-white text-sm">Code Signature Comparison</h3>
@@ -269,7 +269,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
       </div>
 
       {/* 3. Pedagogical Guidance Card */}
-      <div className="bg-zinc-900 border border-white/15 rounded-xl p-4 sm:p-5 shadow-lg">
+      <div className="apple-glass rounded-xl p-4 sm:p-5">
         <div className="flex items-start gap-3.5">
           <ClipboardCheck className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" />
           <div className="text-xs space-y-1.5">
@@ -294,7 +294,7 @@ export default function ReportViewer({ student, report, onPrint, onViewFileInIns
 
       {/* 4. Git Commit History Timeline */}
       {student.commits && student.commits.length > 0 && (
-        <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 sm:p-5 shadow-lg space-y-3.5">
+        <div className="apple-glass rounded-xl p-4 sm:p-5 space-y-3.5">
           <div className="flex items-center justify-between pb-2 border-b border-white/10 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-sky-400" />

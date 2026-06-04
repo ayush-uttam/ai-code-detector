@@ -280,7 +280,7 @@ export default function StudentList({
   });
 
   return (
-    <div id="student-list-container" className="flex flex-col h-full bg-zinc-900 border border-white/10 rounded-xl shadow-lg overflow-hidden">
+    <div id="student-list-container" className="flex flex-col h-full apple-glass rounded-xl overflow-hidden">
       
       {/* 1. Header with Upload Options */}
       <div className="p-4 border-b border-white/10 bg-zinc-950/40">
@@ -315,13 +315,69 @@ export default function StudentList({
               <span>{showManualForm && editingStudentId ? "Add Student instead" : "Add Student"}</span>
             </button>
             {students.length > 0 && (
-              <button
-                id="clear-all-btn"
-                onClick={clearAllStudentsClick}
-                className="py-1 px-2 text-xs font-semibold border border-rose-950 hover:bg-rose-950/20 text-rose-400 bg-zinc-950 rounded-lg transition-colors cursor-pointer"
-              >
-                Clear List
-              </button>
+              <>
+                {students.some(s => s.status === "analyzed") && (
+                  <div className="relative">
+                    <button
+                      id="bulk-export-btn"
+                      type="button"
+                      onClick={() => setShowExportMenu(!showExportMenu)}
+                      className="py-1 px-2.5 text-xs font-semibold border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Export Grid</span>
+                    </button>
+                    {/* Dropdown Menu */}
+                    {showExportMenu && (
+                      <>
+                        <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowExportMenu(false)} />
+                        <div className="absolute top-full right-0 mt-1 bg-zinc-950 border border-white/10 rounded-lg shadow-xl py-1 w-44 z-50 text-xs animate-fadeIn">
+                          <button
+                            onClick={() => {
+                              exportAllStudentsToXLSX(students);
+                              setShowExportMenu(false);
+                            }}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-450" />
+                            <span>Export Excel (.xlsx)</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (onPrintAll) onPrintAll();
+                              setShowExportMenu(false);
+                            }}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-sky-400" />
+                            <span>Print Master PDF</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <button
+                  id="analyze-all-btn"
+                  onClick={onAnalyzeAll}
+                  disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
+                  className="py-1 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
+                >
+                  <BarChart2 className="w-3.5 h-3.5" />
+                  <span>Analyze Grid Repos</span>
+                </button>
+
+                <button
+                  id="clear-all-btn"
+                  onClick={clearAllStudentsClick}
+                  className="py-1 px-2 text-xs font-semibold border border-rose-950 hover:bg-rose-950/20 text-rose-400 bg-zinc-950 rounded-lg transition-colors cursor-pointer"
+                >
+                  Clear List
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -466,7 +522,7 @@ export default function StudentList({
               placeholder="Search students..."
               value={filterStr}
               onChange={(e) => setFilterStr(e.target.value)}
-              className="w-full pl-8 pr-2 py-1 bg-zinc-950 border border-white/10 rounded text-xs text-white focus:ring-1 focus:ring-sky-505 focus:outline-none"
+              className="w-full pl-8 pr-2 py-1 bg-zinc-950 border border-white/10 rounded text-xs text-white focus:ring-1 focus:ring-sky-500 focus:outline-none"
             />
           </div>
           <div className="relative">
@@ -487,7 +543,7 @@ export default function StudentList({
       )}
 
       {/* 4. Student List Body */}
-      <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
         {filteredStudents.length === 0 ? (
           <div className="p-8 text-center text-zinc-500">
             {students.length === 0 ? (
@@ -522,7 +578,7 @@ export default function StudentList({
               );
             } else if (student.status === "analyzing") {
               statusBadge = (
-                <span className="flex items-center gap-1 text-[10px] font-semibold text-sky-450 bg-sky-955/35 px-1.5 py-0.5 rounded-full border border-sky-500/10">
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-sky-400 bg-sky-950/30 px-1.5 py-0.5 rounded-full border border-sky-500/10">
                   <Loader2 className="w-3 h-3 animate-spin shrink-0" />
                   <span>Analyzing</span>
                 </span>
@@ -575,10 +631,10 @@ export default function StudentList({
                 id={`student-row-${student.id}`}
                 key={student.id}
                 onClick={() => setSelectedStudentId(student.id)}
-                className={`p-3 cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                className={`p-3 rounded-lg cursor-pointer transition-all duration-300 flex items-start justify-between gap-3 ${
                   isSelected 
-                    ? "bg-sky-500/10 border-l-4 border-sky-500" 
-                    : "hover:bg-white/5 border-l-4 border-transparent"
+                    ? "bg-sky-500/10 shadow-[0_8px_30px_rgba(14,165,233,0.15),0_12px_24px_rgba(0,0,0,0.5)] scale-[1.01] relative z-10" 
+                    : "hover:bg-white/5 border border-transparent"
                 }`}
               >
                 <div className="min-w-0 flex-1">
@@ -644,69 +700,7 @@ export default function StudentList({
         )}
       </div>
 
-      {/* 5. Footer Run All Actions */}
-      {students.length > 0 && (
-        <div className="p-3 bg-zinc-950 border-t border-white/10 flex items-center justify-between gap-2 flex-wrap animate-fadeIn relative z-20">
-          <span className="text-[10px] font-semibold text-zinc-500">
-            Total of {totalStudents} Student{totalStudents !== 1 ? "s" : ""}
-          </span>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {students.some(s => s.status === "analyzed") && (
-              <div className="relative">
-                <button
-                  id="bulk-export-btn"
-                  type="button"
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="py-1.5 px-2.5 bg-zinc-900 border border-white/10 hover:bg-zinc-850 text-zinc-350 font-semibold text-xs rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Export Grid</span>
-                </button>
-                {/* Dropdown Menu */}
-                {showExportMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowExportMenu(false)} />
-                    <div className="absolute bottom-full left-0 mb-1.5 bg-zinc-950 border border-white/10 rounded-lg shadow-xl py-1 w-44 z-50 text-xs animate-fadeIn">
-                      <button
-                        onClick={() => {
-                          exportAllStudentsToXLSX(students);
-                          setShowExportMenu(false);
-                        }}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-450" />
-                        <span>Export Excel (.xlsx)</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (onPrintAll) onPrintAll();
-                          setShowExportMenu(false);
-                        }}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-zinc-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <Printer className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Print Master PDF</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
 
-            <button
-              id="analyze-all-btn"
-              onClick={onAnalyzeAll}
-              disabled={students.every((s) => s.status === "analyzing" || s.status === "fetching")}
-              className="py-1.5 px-3 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all shadow-md shadow-sky-950/40 flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-550"
-            >
-              <BarChart2 className="w-3.5 h-3.5" />
-              <span>Analyze Grid Repos</span>
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

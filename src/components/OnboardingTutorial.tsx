@@ -77,7 +77,7 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-sky-500/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="bg-zinc-900 border border-white/10 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl relative z-10 flex flex-col max-h-[90vh]">
+      <div className="apple-glass w-full max-w-lg rounded-2xl overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
         
         {/* Header / Steps Indicator */}
         <div className="px-6 py-4 bg-zinc-950/40 border-b border-white/10 flex items-center justify-between">
@@ -327,7 +327,7 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
             <button
               type="button"
               onClick={handleNext}
-              className="py-1.5 px-4 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-sky-955/50"
+              className="py-1.5 px-4 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow shadow-sky-500/30 focus:outline-none"
             >
               <span>Next</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -337,7 +337,7 @@ export default function OnboardingTutorial({ onSaveKeys, onComplete, onSignOut }
               type="button"
               onClick={handleFinish}
               disabled={submitting}
-              className="py-1.5 px-5 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed shadow-lg shadow-sky-955/50"
+              className="py-1.5 px-5 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed shadow shadow-sky-500/30 focus:outline-none"
             >
               {submitting ? (
                 <>

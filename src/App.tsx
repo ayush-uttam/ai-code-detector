@@ -15,7 +15,9 @@ import {
   Layers,
   AlertCircle,
   Code2,
-  Gauge
+  Gauge,
+  Menu,
+  X
 } from "lucide-react";
 
 export default function App() {
@@ -48,11 +50,19 @@ export default function App() {
   const [githubToken, setGithubToken] = useState<string>("");
   const [aiProvider, setAiProvider] = useState<"gemini" | "openai">("gemini");
   const [geminiModel, setGeminiModel] = useState<string>("gemini-3.1-flash-lite");
-  const [activeTab, setActiveTab] = useState<"report" | "code">("report");
+  const [view, setView] = useState<"students" | "report" | "code">("students");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAnalyzingSandbox, setIsAnalyzingSandbox] = useState(false);
   const [isAnalyzingSingleFile, setIsAnalyzingSingleFile] = useState(false);
   const [printTarget, setPrintTarget] = useState<{ type: "single" | "all"; studentId?: string } | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string>("");
+
+  const handleSelectStudent = (id: string | null) => {
+    setSelectedStudentId(id);
+    if (id) {
+      setView("report");
+    }
+  };
 
   useEffect(() => {
     if (printTarget) {
@@ -63,6 +73,41 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [printTarget]);
+
+  // Mouse-following halo tracker
+  useEffect(() => {
+    const halo = document.getElementById("mouse-halo");
+    if (!halo) return;
+
+    let lastX = 0;
+    let lastY = 0;
+    let rafId: number;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      lastX = e.clientX;
+      lastY = e.clientY;
+      
+      cancelAnimationFrame(rafId);
+      
+      rafId = requestAnimationFrame(() => {
+        halo.style.transform = `translate3d(${lastX}px, ${lastY}px, 0)`;
+        halo.style.opacity = "1";
+      });
+    };
+
+    const handleMouseLeave = () => {
+      halo.style.opacity = "0";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      cancelAnimationFrame(rafId);
+    };
+  }, [user, loading, mentor?.tutorialCompleted]);
 
   // Load custom GitHub Token from local storage on auth change
   useEffect(() => {
@@ -86,6 +131,19 @@ export default function App() {
   }, [students, selectedStudentId]);
 
   const selectedStudent = students.find((s) => s.id === selectedStudentId) || null;
+  const currentStudentIndex = students.findIndex((s) => s.id === selectedStudentId);
+
+  const handlePrevStudent = () => {
+    if (currentStudentIndex > 0) {
+      setSelectedStudentId(students[currentStudentIndex - 1].id);
+    }
+  };
+
+  const handleNextStudent = () => {
+    if (currentStudentIndex >= 0 && currentStudentIndex < students.length - 1) {
+      setSelectedStudentId(students[currentStudentIndex + 1].id);
+    }
+  };
 
   // Set default selected file path when selected student changes
   useEffect(() => {
@@ -123,6 +181,8 @@ export default function App() {
 
   // Perform Analysis for a Single Student Repo
   const handleAnalyzeStudent = async (student: Student, forceRefetch = false) => {
+    setSelectedStudentId(student.id);
+    setView("report");
     try {
       let filesToUse = student.files || [];
       
@@ -369,7 +429,7 @@ export default function App() {
       });
       
       // Auto switch back to report tab on successful sandbox test
-      setActiveTab("report");
+      setView("report");
 
     } catch (err: any) {
       console.error("Sandbox failure:", err);
@@ -474,8 +534,8 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center font-mono">
-        <Loader2 className="w-8 h-8 text-sky-400 animate-spin mb-4" />
-        <span className="text-zinc-500 text-xs">Synchronizing Academic Workspace Securely...</span>
+        <span className="inline-block animate-spin border-2 border-sky-400 border-t-transparent w-8 h-8 rounded-full mb-4" />
+        <span className="text-zinc-550 text-xs">Synchronizing Academic Workspace Securely...</span>
       </div>
     );
   }
@@ -497,70 +557,369 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
-      <div className="no-print flex-1 flex flex-col">
-      {/* 1. Header Area with Google Auth Identity Management */}
-      <header className="bg-zinc-950 border-b border-white/10 sticky top-0 z-10 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3.5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="font-display font-bold text-white text-lg leading-tight tracking-tight flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-sky-400" />
-                <span>SENTINEL AI</span>
-                <span className="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Academic Suite</span>
-              </h1>
-              <p className="text-zinc-400 text-xs mt-0.5">Analyze public student GitHub repositories for AI generation patterns</p>
-            </div>
-          </div>
-          
-          {/* Authenticated Identity Badge */}
-          <div className="flex items-center gap-3 self-end sm:self-center bg-zinc-900 border border-white/5 py-1.5 pl-3 pr-1.5 rounded-xl">
-            <div className="text-right hidden sm:block">
-              <p className="text-[11px] text-white font-bold max-w-[120px] truncate leading-tight">{user.displayName || user.email}</p>
-              <p className="text-[9px] text-zinc-500 font-mono tracking-wide">Authorized Mentor</p>
-            </div>
-            {user.photoURL ? (
-              <img 
-                referrerPolicy="no-referrer" 
-                src={user.photoURL} 
-                alt="Avatar" 
-                className="w-7 h-7 rounded-full border border-sky-500/30 object-cover shrink-0" 
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center text-xs font-bold font-mono shrink-0">
-                {String(user.email || 'M')[0].toUpperCase()}
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans relative overflow-hidden">
+      {/* Mouse Halo */}
+      <div id="mouse-halo" className="opacity-0" />
+
+      {/* Decorative ambient background glows */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-sky-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute -bottom-45 -right-45 w-96 h-96 bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="no-print flex-1 flex flex-col relative z-10">
+        {/* 1. Header Area with Google Auth Identity Management */}
+        <header className="bg-zinc-950/80 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="font-display font-bold text-white text-lg leading-tight tracking-tight flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-sky-400" />
+                  <span>SENTINEL AI <span className="opacity-80 font-normal">Academic</span></span>
+                </h1>
+                <p className="text-zinc-550 text-[10px] mt-0.5 font-mono tracking-wider uppercase">High-Fidelity Code Audit Dashboard</p>
               </div>
-            )}
+            </div>
+
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              className="p-2 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-350 rounded-full transition-colors cursor-pointer shrink-0"
+              title="API Config & Settings"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* 2. Educational Tip (Minimal Banner) */}
+        <section className="bg-zinc-955/20 text-zinc-400 py-2 px-4 border-b border-white/10 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-[11px] tracking-wide">
+            <div className="flex items-start md:items-center gap-2">
+              <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
+              <p>
+                <span className="font-semibold text-sky-400">Roster Check:</span> Import Excel file roster &bull; Scan repositories &bull; View AI probability report details.
+              </p>
+            </div>
+            <span className="text-[10px] text-zinc-500 font-mono">
+              Secure Isolated Sandbox Active
+            </span>
+          </div>
+        </section>
+
+        {/* 3. Main Dashboard Workspace Layout */}
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col min-h-0">
+          {view === "students" && (
+            /* Page 1: Roster and Settings (Full Width Spacious) */
+            <div className="w-full flex-1 flex flex-col min-h-[500px] animate-fadeIn">
+              <StudentList
+                students={students}
+                selectedStudentId={selectedStudentId}
+                setSelectedStudentId={handleSelectStudent}
+                onAnalyzeStudent={handleAnalyzeStudent}
+                onAnalyzeAll={handleAnalyzeAll}
+                onPrintAll={() => setPrintTarget({ type: "all" })}
+              />
+            </div>
+          )}
+
+          {view === "report" && (
+            /* Page 2: Forensic Report Page */
+            <div className="max-w-5xl w-full mx-auto space-y-6 animate-fadeIn">
+              {/* Report Sub-Navbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 apple-glass p-4 rounded-xl">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    onClick={() => setView("students")}
+                    className="py-1.5 px-3 border border-white/10 hover:bg-white/5 text-zinc-350 bg-zinc-950 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                  >
+                    ← Back to Classroom Roster
+                  </button>
+                  
+                  {students.length > 1 && (
+                    <>
+                      <span className="text-zinc-700">|</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={handlePrevStudent}
+                          disabled={currentStudentIndex <= 0}
+                          className="py-1.5 px-2.5 border border-white/10 hover:bg-white/5 text-zinc-350 bg-zinc-950 rounded-lg disabled:opacity-30 disabled:hover:bg-zinc-950 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                          title="Previous Student"
+                        >
+                          ◀ Prev
+                        </button>
+                        <span className="text-[10px] text-zinc-500 font-mono px-1">
+                          {currentStudentIndex + 1} / {students.length}
+                        </span>
+                        <button
+                          onClick={handleNextStudent}
+                          disabled={currentStudentIndex < 0 || currentStudentIndex >= students.length - 1}
+                          className="py-1.5 px-2.5 border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg disabled:opacity-30 disabled:hover:bg-zinc-950 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                          title="Next Student"
+                        >
+                          Next ▶
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <span className="text-zinc-700">|</span>
+                  <span className="text-xs text-zinc-400">
+                    Active Student: <strong className="text-white font-semibold">{selectedStudent?.name}</strong> {selectedStudent?.rollNo && `(Roll: ${selectedStudent.rollNo})`}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {selectedStudent && selectedStudent.status === "analyzed" && (
+                    <button
+                      onClick={() => setView("code")}
+                      className="py-1.5 px-4 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none"
+                    >
+                      Inspect Source Code →
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Report Frame Content */}
+              {selectedStudent ? (
+                selectedStudent.status === "analyzed" && selectedStudent.activeReport ? (
+                  <div key={selectedStudent.id} className="animate-fadeIn">
+                    <ReportViewer
+                      student={selectedStudent}
+                      report={selectedStudent.activeReport}
+                      onPrint={() => setPrintTarget({ type: "single", studentId: selectedStudent.id })}
+                      onViewFileInInspector={(filePath) => {
+                        setSelectedFilePath(filePath);
+                        setView("code");
+                      }}
+                    />
+                  </div>
+                ) : (
+                  /* Setup audit prompt if student is not analyzed yet */
+                  <div className="bg-zinc-900 border border-white/10 rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center min-h-[400px] shadow-lg space-y-6">
+                    <div className="p-4 bg-white/5 text-zinc-400 rounded-full border border-white/10">
+                      <Code2 className="w-8 h-8" />
+                    </div>
+                    
+                    <div className="space-y-2 max-w-md mx-auto">
+                      <h2 className="font-display font-bold text-white text-xl tracking-tight leading-tight">Unchecked Student Repository</h2>
+                      <p className="text-zinc-400 text-sm leading-relaxed font-light">
+                        We haven't parsed the repositories or completed style inspections for <strong className="text-zinc-300">{selectedStudent.name}</strong> yet. Press below to fetch public source files and verify coding behavior.
+                      </p>
+                    </div>
+
+                    {selectedStudent.errorMsg && (
+                      <div className="max-w-lg p-3 bg-rose-955/20 border border-rose-500/20 text-rose-300 text-xs rounded-lg text-left flex items-start gap-2 mx-auto">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+                        <div>
+                          <span className="font-bold">Status: </span>
+                          {selectedStudent.errorMsg}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2.5 justify-center pt-2">
+                      <button
+                        id="primary-analyze-btn"
+                        onClick={() => handleAnalyzeStudent(selectedStudent, true)}
+                        disabled={selectedStudent.status === "fetching" || selectedStudent.status === "analyzing"}
+                        className="py-2 px-5 bg-sky-500 hover:bg-sky-400 text-white font-semibold text-xs rounded-lg transition-all flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-500 shadow shadow-sky-500/20 focus:outline-none"
+                      >
+                        {selectedStudent.status === "fetching" || selectedStudent.status === "analyzing" ? (
+                          <>
+                            <span className="inline-block animate-spin border-2 border-white border-t-transparent w-3.5 h-3.5 rounded-full" />
+                            <span>Scanning Files...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Run Gemini AI Code Audit</span>
+                          </>
+                        )}
+                      </button>
+                      
+                      <button
+                        id="fallback-paste-tab-btn"
+                        onClick={() => {
+                          setView("code");
+                          // Also default sandbox mode if empty
+                          setSelectedFilePath("");
+                        }}
+                        className="py-2 px-4 font-semibold text-xs border border-white/10 text-zinc-300 rounded-lg hover:bg-white/5 transition-all bg-zinc-950 cursor-pointer"
+                      >
+                        Manual Code Sandbox
+                      </button>
+                    </div>
+                  </div>
+                )
+              ) : (
+                /* No student active */
+                <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
+                  <Layers className="w-10 h-10 text-zinc-600 mb-2 animate-bounce" />
+                  <p className="text-zinc-400 text-sm">Please select a student from the roster list to view their integrity report.</p>
+                  <button
+                    onClick={() => setView("students")}
+                    className="mt-4 py-1.5 px-3 bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-zinc-350 rounded-lg text-xs cursor-pointer"
+                  >
+                    Go to Classroom Roster
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === "code" && (
+            /* Page 3: Code Inspector Page */
+            <div className="w-full space-y-6 animate-fadeIn">
+              {/* Code Inspector Sub-Navbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 apple-glass p-4 rounded-xl">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {selectedStudent && selectedStudent.status === "analyzed" && (
+                    <button
+                      onClick={() => setView("report")}
+                      className="py-1.5 px-3 border border-white/10 hover:bg-white/5 text-zinc-350 bg-zinc-950 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                    >
+                      ← Back to Forensic Report
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setView("students")}
+                    className="py-1.5 px-3 border border-white/10 hover:bg-white/5 text-zinc-350 bg-zinc-950 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                  >
+                    Classroom Roster
+                  </button>
+
+                  {students.length > 1 && (
+                    <>
+                      <span className="text-zinc-700">|</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={handlePrevStudent}
+                          disabled={currentStudentIndex <= 0}
+                          className="py-1.5 px-2.5 border border-white/10 hover:bg-white/5 text-zinc-350 bg-zinc-950 rounded-lg disabled:opacity-30 disabled:hover:bg-zinc-950 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                          title="Previous Student"
+                        >
+                          ◀ Prev
+                        </button>
+                        <span className="text-[10px] text-zinc-500 font-mono px-1">
+                          {currentStudentIndex + 1} / {students.length}
+                        </span>
+                        <button
+                          onClick={handleNextStudent}
+                          disabled={currentStudentIndex < 0 || currentStudentIndex >= students.length - 1}
+                          className="py-1.5 px-2.5 border border-white/10 hover:bg-white/5 text-zinc-300 bg-zinc-950 rounded-lg disabled:opacity-30 disabled:hover:bg-zinc-950 transition-colors cursor-pointer text-xs font-semibold focus:outline-none focus:ring-0"
+                          title="Next Student"
+                        >
+                          Next ▶
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <span className="text-zinc-700">|</span>
+                  <span className="text-xs text-zinc-400">
+                    Inspecting Code: <strong className="text-white font-semibold">{selectedStudent?.name}</strong>
+                  </span>
+                </div>
+              </div>
+
+              {/* Code Inspector Content Wrapper */}
+              {selectedStudent ? (
+                <div key={selectedStudent.id} className="h-[650px] animate-fadeIn">
+                  <CodeInspector
+                    student={selectedStudent}
+                    onCodeAnalyze={handleSandboxCodeAnalyze}
+                    isAnalyzing={isAnalyzingSandbox}
+                    selectedFilePath={selectedFilePath}
+                    setSelectedFilePath={setSelectedFilePath}
+                    onSingleFileAnalyze={handleSingleFileAnalyze}
+                    isAnalyzingSingleFile={isAnalyzingSingleFile}
+                  />
+                </div>
+              ) : (
+                <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
+                  <Layers className="w-10 h-10 text-zinc-600 mb-2" />
+                  <p className="text-zinc-400 text-sm">Please select a student from the roster list to view their code.</p>
+                  <button
+                    onClick={() => setView("students")}
+                    className="mt-4 py-1.5 px-3 bg-zinc-950 hover:bg-zinc-900 border border-white/10 text-zinc-350 rounded-lg text-xs cursor-pointer"
+                  >
+                    Go to Classroom Roster
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* 4. Professional footer with explicit credits requested by the user */}
+        <footer className="bg-zinc-950 border-t border-white/10 py-5 mt-auto">
+          <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[10px] text-zinc-550 font-mono tracking-wide">
+            <span>AI Code Detector &bull; Powered by Google Gemini &bull; Secure Academic Cloud Suite</span>
+            <a 
+              href="https://github.com/ayush-uttam"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-400 hover:text-sky-455 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center transition-colors cursor-pointer"
+            >
+              Vibe coded by Ayush Uttam xD
+            </a>
+          </div>
+        </footer>
+      </div>
+
+      {/* Slide-over settings drawer */}
+      <div className={`fixed inset-0 z-55 flex justify-end ${
+        isMenuOpen ? "pointer-events-auto" : "pointer-events-none"
+      }`}>
+        {/* Backdrop overlay */}
+        <div 
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm ${
+            isMenuOpen ? "opacity-100 drawer-backdrop-in" : "opacity-0 drawer-backdrop-out"
+          }`}
+          onClick={() => setIsMenuOpen(false)}
+        />
+        
+        {/* Drawer body */}
+        <div className={`relative w-full max-w-md apple-glass border-l border-white/10 p-6 flex flex-col gap-6 shadow-2xl h-full overflow-y-auto transform ${
+          isMenuOpen ? "translate-x-0 drawer-body-in" : "translate-x-full drawer-body-out"
+        }`}>
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <h2 className="text-white font-display font-bold text-lg">System Configuration</h2>
+            <button
+              onClick={() => setIsMenuOpen(false)}
+              className="p-1.5 bg-zinc-900 hover:bg-zinc-800 border border-white/10 text-zinc-400 hover:text-white rounded-full transition-colors cursor-pointer focus:outline-none"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Authenticated Identity Badge */}
+          <div className="flex items-center justify-between bg-zinc-900 border border-white/10 p-3 rounded-xl shadow-inner">
+            <div className="flex items-center gap-3">
+              {user.photoURL ? (
+                <img 
+                  referrerPolicy="no-referrer" 
+                  src={user.photoURL} 
+                  alt="Avatar" 
+                  className="w-8 h-8 rounded-full border border-white/10 object-cover shrink-0" 
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700 flex items-center justify-center text-xs font-bold font-mono shrink-0">
+                  {String(user.email || 'M')[0].toUpperCase()}
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-white font-semibold max-w-[150px] truncate leading-tight">{user.displayName || user.email}</p>
+                <p className="text-[9px] text-zinc-500 font-mono mt-0.5">Authorized Mentor</p>
+              </div>
+            </div>
             <button
               onClick={logout}
-              className="py-1 px-2.5 bg-zinc-800 hover:bg-zinc-755 hover:text-rose-400 text-zinc-400 text-[10px] uppercase font-bold rounded-lg transition-colors cursor-pointer"
+              className="py-1 px-3 bg-zinc-950 hover:bg-zinc-800 border border-white/10 text-zinc-450 hover:text-zinc-300 text-[10px] font-bold rounded-full transition-colors cursor-pointer"
             >
               Sign Out
             </button>
           </div>
-        </div>
-      </header>
-
-      {/* 2. Educational Tutorial Helper */}
-      <section className="bg-sky-950/20 text-zinc-300 py-3 px-4 border-b border-white/10 shadow-inner">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs leading-relaxed">
-          <div className="flex items-start md:items-center gap-2">
-            <Sparkles className="w-4 h-4 text-sky-400 shrink-0 mt-0.5 md:mt-0" />
-            <p className="font-medium">
-              <strong className="text-sky-300">Educator Checklist:</strong> (1) Upload student records from Excel with Git urls (2) Push <strong>Analyze</strong> to pull public codes (3) Inspect structural anomalies in the Inspector tab!
-            </p>
-          </div>
-          <span className="text-[10px] bg-white/5 border border-white/10 text-zinc-300 py-0.5 px-2 rounded-md font-mono shrink-0">
-            Isolated Mentor Cloud Databases Active
-          </span>
-        </div>
-      </section>
-
-      {/* 3. Main Dashboard Workspace Layout */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-        
-        {/* Left column: Student loading grid and token configurations */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-5 min-h-0">
+          
           <TokenSettings
             githubToken={githubToken}
             setGithubToken={setGithubToken}
@@ -573,191 +932,7 @@ export default function App() {
             customOpenaiKey={mentor?.openaiApiKey || ""}
             onSaveCustomOpenaiKey={saveOpenaiApiKey}
           />
-          
-          <div className="flex-1 min-h-[400px] lg:min-h-0 opacity-100 transition-opacity">
-            <StudentList
-              students={students}
-              selectedStudentId={selectedStudentId}
-              setSelectedStudentId={setSelectedStudentId}
-              onAnalyzeStudent={handleAnalyzeStudent}
-              onAnalyzeAll={handleAnalyzeAll}
-              onPrintAll={() => setPrintTarget({ type: "all" })}
-            />
-          </div>
         </div>
-
-        {/* Right column: Dynamic analysis outputs and code walkthrough inspection panels */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0">
-          {selectedStudent ? (
-            <div className="flex flex-col h-full space-y-4">
-              
-              {/* Selector Tabs (Report view or code file inspector) */}
-              <div className="bg-zinc-900 border border-white/10 rounded-xl p-1.5 flex items-center justify-between shadow-md">
-                <div className="flex gap-1">
-                  <button
-                    id="tab-report"
-                    onClick={() => setActiveTab("report")}
-                    className={`py-1.5 px-4 font-display font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-                      activeTab === "report"
-                        ? "bg-sky-500 text-white shadow-md shadow-sky-950/50"
-                        : "text-zinc-400 hover:text-sky-400 hover:bg-white/5"
-                    }`}
-                  >
-                    <Gauge className="w-3.5 h-3.5" />
-                    <span>AI Detection Report</span>
-                  </button>
-                  
-                  <button
-                    id="tab-code"
-                    onClick={() => setActiveTab("code")}
-                    className={`py-1.5 px-4 font-display font-bold text-xs rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
-                      activeTab === "code"
-                        ? "bg-sky-500 text-white shadow-md shadow-sky-950/50"
-                        : "text-zinc-400 hover:text-sky-400 hover:bg-white/5"
-                    }`}
-                  >
-                    <Code2 className="w-3.5 h-3.5" />
-                    <span>Live Code walkthrough</span>
-                  </button>
-                </div>
-
-                <div className="px-3 text-xs text-zinc-400 font-medium truncate max-w-[200px] sm:max-w-none">
-                  Active Student: <span className="font-bold text-white">{selectedStudent.name}</span>
-                </div>
-              </div>
-
-              {/* Tab Frame Content */}
-              <div className="flex-1 min-h-0">
-                {activeTab === "report" ? (
-                  /* Report Viewer or Prompt Analysis Frame */
-                  selectedStudent.status === "analyzed" && selectedStudent.activeReport ? (
-                    <ReportViewer
-                      student={selectedStudent}
-                      report={selectedStudent.activeReport}
-                      onPrint={() => setPrintTarget({ type: "single", studentId: selectedStudent.id })}
-                      onViewFileInInspector={(filePath) => {
-                        setSelectedFilePath(filePath);
-                        setActiveTab("code");
-                      }}
-                    />
-                  ) : (
-                    /* Setup prompt frame if student is not analyzed yet */
-                    <div className="bg-zinc-900/50 border border-white/10 rounded-xl p-8 text-center flex flex-col items-center justify-center min-h-[400px] shadow-lg space-y-6 animate-fadeIn">
-                      <div className="p-4 bg-sky-500/10 text-sky-450 rounded-full border border-sky-500/20 animate-pulse">
-                        <Code2 className="w-10 h-10" />
-                      </div>
-                      
-                      <div className="space-y-1.5 max-w-sm">
-                        <h2 className="font-display font-bold text-white text-base">Unchecked Student Repository</h2>
-                        <p className="text-zinc-400 text-xs leading-relaxed">
-                          We haven't parsed the repositories or completed style inspections for <strong className="text-zinc-300">{selectedStudent.name}</strong> yet. Press below to fetch public source files and verify coding behavior.
-                        </p>
-                      </div>
-
-                      {selectedStudent.errorMsg && (
-                        <div className="max-w-lg p-3 bg-rose-950/40 text-rose-300 border border-rose-555/35 rounded-lg text-xs font-medium text-left flex items-start gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-455" />
-                          <div>
-                            <span className="font-bold">Status: </span>
-                            {selectedStudent.errorMsg}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap gap-2.5 justify-center pt-2">
-                        <button
-                          id="primary-analyze-btn"
-                          onClick={() => handleAnalyzeStudent(selectedStudent, true)}
-                          disabled={selectedStudent.status === "fetching" || selectedStudent.status === "analyzing"}
-                          className="py-1.5 px-5 bg-sky-500 text-white font-semibold text-xs rounded-lg hover:bg-sky-400 transition-all flex items-center gap-1.5 cursor-pointer disabled:bg-zinc-800 disabled:text-zinc-555"
-                        >
-                          {selectedStudent.status === "fetching" || selectedStudent.status === "analyzing" ? (
-                            <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              <span>Scanning Files...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>Run Gemini AI Code Audit</span>
-                            </>
-                          )}
-                        </button>
-                        
-                        <button
-                          id="fallback-paste-tab-btn"
-                          onClick={() => {
-                            setActiveTab("code");
-                          }}
-                          className="py-1.5 px-4 font-semibold text-xs border border-white/10 text-zinc-300 rounded-lg hover:bg-white/5 transition-all bg-zinc-950 cursor-pointer"
-                        >
-                          Manual Code Sandbox
-                        </button>
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  /* Code Inspector panel */
-                  <CodeInspector
-                    student={selectedStudent}
-                    onCodeAnalyze={handleSandboxCodeAnalyze}
-                    isAnalyzing={isAnalyzingSandbox}
-                    selectedFilePath={selectedFilePath}
-                    setSelectedFilePath={setSelectedFilePath}
-                    onSingleFileAnalyze={handleSingleFileAnalyze}
-                    isAnalyzingSingleFile={isAnalyzingSingleFile}
-                  />
-                )}
-              </div>
-
-            </div>
-          ) : (
-            /* Welcome screen when no student is selected of all loaded records */
-            <div className="bg-zinc-900/40 border border-white/10 rounded-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center h-full min-h-[400px] shadow-lg space-y-6">
-              <div className="p-4 bg-white/5 text-zinc-500 rounded-full border border-white/10">
-                <Layers className="w-12 h-12 text-zinc-400" />
-              </div>
-              
-              <div className="space-y-2 max-w-sm">
-                <h2 className="font-display font-semibold text-white text-lg leading-tight">No Selected Student Repo</h2>
-                <p className="text-zinc-450 text-xs">
-                  Upload an Excel spreadsheet containing students' GitHub links, or click on an existing record card in the list to inspect their files.
-                </p>
-              </div>
-
-              {students.length === 0 && (
-                <div className="flex flex-col items-center gap-3 pt-2">
-                  <span className="text-[11px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <BookOpen className="w-4 h-4" />
-                    <span>How it works:</span>
-                  </span>
-                  <div className="bg-zinc-900 border border-white/10 rounded-lg p-4 text-left max-w-sm text-[11px] text-zinc-300 space-y-2">
-                    <p className="font-semibold text-white">1. Prepare your spreadsheet with headers:</p>
-                    <p className="text-sky-300 pl-3 font-mono font-semibold">"Student Name", "Roll No", "GitHub Link"</p>
-                    <p className="font-semibold text-white mt-2">2. Upload sheet, then hit Audit to review structural metrics.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-      </main>
-
-      {/* 4. Professional footer with explicit credits requested by the user */}
-      <footer className="bg-zinc-950 border-t border-white/10 py-5 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[10px] text-zinc-500 font-mono tracking-wide">
-          <span>AI Code Detector &bull; Powered by Google Gemini &bull; Secure Academic Cloud Suite</span>
-          <a 
-            href="https://github.com/ayush-uttam"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-zinc-400 hover:text-sky-450 font-semibold px-2.5 py-1 bg-white/5 rounded-full border border-white/10 sm:self-center transition-colors cursor-pointer"
-          >
-            Vibe coded by Ayush Uttam xD
-          </a>
-        </div>
-      </footer>
       </div>
 
       {printTarget && (
